@@ -1,0 +1,2188 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=yes">
+  <title>ExamShield · Next-Gen Examination Security</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,400;14..32,500;14..32,600;14..32,700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+  <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@4.20.0/dist/tf.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@tensorflow-models/coco-ssd@2.2.3/dist/coco-ssd.min.js"></script>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    :root {
+      --bg-deep: #0b1120;
+      --bg-panel: rgba(18, 28, 46, 0.8);
+      --border-glow: rgba(34, 211, 238, 0.2);
+      --accent-cyan: #22d3ee;
+      --accent-blue: #3b82f6;
+      --text-primary: #f0f4fa;
+      --text-secondary: #9aa8bf;
+      --success: #10b981;
+      --warning: #f59e0b;
+      --danger: #ef4444;
+      --radius: 1.25rem;
+      --shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.6);
+      --glass: blur(14px);
+    }
+    body {
+      font-family: 'Inter', sans-serif;
+      background: radial-gradient(circle at 20% 30%, #0f172a, #020617);
+      color: var(--text-primary);
+      min-height: 100vh;
+      line-height: 1.5;
+      overflow-x: hidden;
+    }
+    ::-webkit-scrollbar { width: 6px; height: 6px; }
+    ::-webkit-scrollbar-track { background: #0f172a; }
+    ::-webkit-scrollbar-thumb { background: #2a3a5a; border-radius: 8px; }
+    .app-container { display: flex; min-height: 100vh; }
+
+    #loginPage {
+      display: flex; align-items: center; justify-content: center;
+      min-height: 100vh;
+      background: radial-gradient(circle at 70% 30%, #0f172a, #020617);
+      padding: 1.5rem; position: fixed; inset: 0; z-index: 1000;
+    }
+    .login-card {
+      background: var(--bg-panel); backdrop-filter: var(--glass);
+      border: 1px solid var(--border-glow); border-radius: 2rem;
+      padding: 2.5rem 2rem; width: 100%; max-width: 440px; box-shadow: var(--shadow);
+    }
+    .login-header { text-align: center; margin-bottom: 2rem; }
+    .logo-icon { font-size: 2.8rem; color: var(--accent-cyan); filter: drop-shadow(0 0 12px rgba(34,211,238,0.5)); }
+    .login-header h2 { font-weight: 700; font-size: 1.9rem; letter-spacing: -0.5px; margin-top: 0.5rem; }
+    .login-header p { color: var(--text-secondary); font-size: 0.9rem; }
+    .input-group { margin-bottom: 1.2rem; }
+    .input-group label { display: block; font-size: 0.8rem; font-weight: 500; color: var(--text-secondary); margin-bottom: 0.4rem; }
+    .input-group input {
+      width: 100%; padding: 0.9rem 1rem; background: rgba(255,255,255,0.04);
+      border: 1px solid rgba(255,255,255,0.08); border-radius: 0.9rem;
+      color: white; font-size: 0.95rem; outline: none; transition: all 0.2s;
+    }
+    .input-group input:focus { border-color: var(--accent-cyan); box-shadow: 0 0 0 3px rgba(34,211,238,0.15); }
+    .password-wrapper { position: relative; }
+    .toggle-password { position: absolute; right: 1rem; top: 50%; transform: translateY(-50%); color: var(--text-secondary); cursor: pointer; }
+    .login-options { display: flex; justify-content: space-between; align-items: center; margin: 1.2rem 0 1.5rem; font-size: 0.85rem; color: var(--text-secondary); }
+    .checkbox-label { display: flex; align-items: center; gap: 0.5rem; cursor: pointer; }
+    .checkbox-label input { accent-color: var(--accent-cyan); width: 1rem; height: 1rem; }
+    .forgot-link { color: var(--accent-cyan); text-decoration: none; }
+    .btn-primary {
+      background: linear-gradient(135deg, #0891b2, #2563eb); color: white; border: none;
+      padding: 0.9rem 1.5rem; border-radius: 1rem; font-weight: 600; font-size: 1rem;
+      width: 100%; cursor: pointer; transition: all 0.25s;
+      box-shadow: 0 10px 20px -8px rgba(6,182,212,0.4);
+    }
+    .btn-primary:hover { transform: translateY(-2px); box-shadow: 0 16px 28px -8px rgba(6,182,212,0.6); filter: brightness(1.1); }
+    .demo-credentials { margin-top: 1.8rem; text-align: center; font-size: 0.78rem; color: #64748b; border-top: 1px dashed rgba(255,255,255,0.08); padding-top: 1.2rem; }
+    .demo-credentials span { background: rgba(34,211,238,0.1); padding: 0.2rem 0.6rem; border-radius: 20px; color: #a5f3fc; font-weight: 500; }
+
+    .sidebar {
+      width: 260px; background: rgba(10,18,32,0.9); backdrop-filter: var(--glass);
+      border-right: 1px solid rgba(34,211,238,0.12); display: flex; flex-direction: column;
+      padding: 1.8rem 1.2rem; position: fixed; height: 100vh; z-index: 50; transition: transform 0.3s ease;
+    }
+    .logo-area { display: flex; align-items: center; gap: 0.75rem; margin-bottom: 2.5rem; padding-left: 0.5rem; }
+    .logo-text { font-weight: 700; font-size: 1.5rem; letter-spacing: -0.5px; background: linear-gradient(to right, #ffffff, #a5f3fc); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+    .nav-item {
+      display: flex; align-items: center; gap: 1rem; padding: 0.85rem 1rem; border-radius: 0.85rem;
+      color: var(--text-secondary); font-weight: 500; font-size: 0.95rem;
+      transition: all 0.2s; cursor: pointer; margin-bottom: 0.3rem; border: 1px solid transparent;
+    }
+    .nav-item i { width: 1.4rem; font-size: 1.2rem; }
+    .nav-item:hover { background: rgba(34,211,238,0.08); color: #e2e8f0; }
+    .nav-item.active {
+      background: linear-gradient(90deg, rgba(34,211,238,0.15), transparent);
+      color: white; border-left: 3px solid var(--accent-cyan);
+      border-radius: 0.85rem 0.85rem 0.85rem 0;
+    }
+    .sidebar-footer { margin-top: auto; font-size: 0.7rem; color: #4b5a73; padding: 1.2rem 0.5rem 0; border-top: 1px solid rgba(255,255,255,0.05); line-height: 1.4; }
+
+    .main-content { flex: 1; margin-left: 260px; padding: 2rem 2rem 3rem; transition: margin 0.3s; min-height: 100vh; }
+    .page { display: none; animation: fadeSlide 0.3s ease; }
+    .page.active { display: block; }
+    @keyframes fadeSlide { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
+    .page-title { font-size: 2rem; font-weight: 700; letter-spacing: -0.5px; margin-bottom: 0.25rem; }
+    .page-sub { color: var(--text-secondary); margin-bottom: 2rem; font-size: 0.95rem; }
+    .text-cyan { color: var(--accent-cyan); }
+    .text-success { color: #6ee7b7; }
+    .text-warning { color: #fbbf24; }
+    .text-danger { color: #fca5a5; }
+
+    .stats-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 1.2rem; margin-bottom: 2rem; }
+    .stat-card {
+      background: var(--bg-panel); backdrop-filter: var(--glass);
+      border: 1px solid rgba(255,255,255,0.04); border-radius: var(--radius);
+      padding: 1.4rem; box-shadow: 0 8px 20px -8px rgba(0,0,0,0.6); transition: all 0.2s;
+    }
+    .stat-card:hover { border-color: rgba(34,211,238,0.3); background: rgba(24,38,60,0.85); }
+    .stat-label { font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.5px; color: var(--text-secondary); margin-bottom: 0.4rem; }
+    .stat-value { font-size: 2rem; font-weight: 700; line-height: 1.1; background: linear-gradient(to right, #f0f9ff, #bae6fd); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+    .stat-trend { font-size: 0.75rem; color: var(--success); margin-top: 0.4rem; }
+
+    .card {
+      background: var(--bg-panel); backdrop-filter: var(--glass);
+      border: 1px solid rgba(255,255,255,0.04); border-radius: var(--radius);
+      padding: 1.5rem; box-shadow: 0 8px 20px -8px rgba(0,0,0,0.6); margin-bottom: 1.5rem;
+    }
+    .card-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.2rem; }
+    .card-header h3 { font-weight: 600; font-size: 1.1rem; }
+    .badge {
+      background: rgba(34,211,238,0.12); color: var(--accent-cyan);
+      font-size: 0.7rem; padding: 0.25rem 0.75rem; border-radius: 40px;
+      font-weight: 600; letter-spacing: 0.3px; border: 1px solid rgba(34,211,238,0.2);
+    }
+
+    .test-item {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 1rem 0; border-bottom: 1px solid rgba(255,255,255,0.04);
+      flex-wrap: wrap; gap: 0.8rem;
+    }
+    .test-item:last-child { border-bottom: none; }
+    .test-info h4 { font-weight: 600; font-size: 1rem; }
+    .test-meta { font-size: 0.78rem; color: var(--text-secondary); display: flex; gap: 1rem; margin-top: 0.3rem; flex-wrap: wrap; }
+
+    .btn-small {
+      background: rgba(34,211,238,0.1); border: 1px solid rgba(34,211,238,0.3);
+      color: var(--accent-cyan); padding: 0.45rem 1rem; border-radius: 40px;
+      font-weight: 600; font-size: 0.75rem; cursor: pointer; transition: all 0.2s; white-space: nowrap;
+    }
+    .btn-small:hover { background: rgba(34,211,238,0.25); color: white; }
+    .btn-outline { background: transparent; border: 1px solid rgba(255,255,255,0.15); color: var(--text-secondary); }
+    .btn-outline:hover { background: rgba(255,255,255,0.05); color: white; }
+
+    .exam-header {
+      display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 1rem;
+      margin-bottom: 1.5rem; background: var(--bg-panel); backdrop-filter: var(--glass);
+      padding: 1.2rem 1.5rem; border-radius: var(--radius); border: 1px solid rgba(255,255,255,0.04);
+    }
+    .timer { font-size: 1.6rem; font-weight: 700; font-variant-numeric: tabular-nums; color: var(--accent-cyan); text-shadow: 0 0 12px rgba(34,211,238,0.3); }
+    .exam-layout { display: flex; gap: 1.5rem; position: relative; }
+    .exam-main { flex: 1; min-width: 0; }
+
+    .question-card {
+      background: var(--bg-panel); backdrop-filter: var(--glass);
+      border-radius: var(--radius); padding: 2rem;
+      border: 1px solid rgba(255,255,255,0.06);
+      transition: filter 0.3s, opacity 0.3s;
+    }
+    .question-card.protected { filter: blur(10px); opacity: 0.65; pointer-events: none; user-select: none; }
+
+    .options-list { display: flex; flex-direction: column; gap: 0.8rem; margin: 1.8rem 0; }
+    .option-item {
+      background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.08);
+      border-radius: 1rem; padding: 1rem 1.2rem; cursor: pointer;
+      transition: all 0.15s; display: flex; align-items: center; gap: 1rem;
+    }
+    .option-item:hover { background: rgba(34,211,238,0.05); border-color: rgba(34,211,238,0.3); }
+    .option-item.selected { background: rgba(34,211,238,0.12); border-color: var(--accent-cyan); }
+    .option-letter {
+      font-weight: 700; width: 1.8rem; height: 1.8rem;
+      display: flex; align-items: center; justify-content: center;
+      background: rgba(255,255,255,0.06); border-radius: 50%; font-size: 0.85rem; flex-shrink: 0;
+    }
+
+    .question-nav-panel { display: flex; flex-wrap: wrap; gap: 0.6rem; margin: 1.5rem 0; }
+    .q-nav-btn {
+      width: 2.5rem; height: 2.5rem; border-radius: 0.8rem;
+      background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.08);
+      color: var(--text-secondary); font-weight: 600; cursor: pointer; transition: all 0.15s;
+    }
+    .q-nav-btn.active { background: var(--accent-cyan); color: #0b1120; border-color: var(--accent-cyan); box-shadow: 0 0 12px rgba(34,211,238,0.4); }
+    .q-nav-btn.answered { background: rgba(34,211,238,0.2); border-color: rgba(34,211,238,0.4); color: white; }
+    .q-nav-btn.review { background: rgba(245,158,11,0.2); border-color: rgba(245,158,11,0.5); color: #fbbf24; }
+
+    .security-panel {
+      width: 360px; flex-shrink: 0; background: var(--bg-panel);
+      backdrop-filter: var(--glass); border-radius: var(--radius);
+      padding: 1.5rem; border: 1px solid rgba(255,255,255,0.04);
+      height: fit-content; position: sticky; top: 2rem;
+    }
+    .security-item { display: flex; justify-content: space-between; align-items: center; padding: 0.6rem 0; border-bottom: 1px solid rgba(255,255,255,0.03); font-size: 0.85rem; }
+    .status-active { color: #6ee7b7; font-weight: 600; font-size: 0.7rem; background: rgba(16,185,129,0.12); padding: 0.2rem 0.6rem; border-radius: 40px; }
+    .status-normal { color: #6ee7b7; font-weight: 600; font-size: 0.7rem; background: rgba(16,185,129,0.12); padding: 0.2rem 0.6rem; border-radius: 40px; }
+    .status-protected { color: #fca5a5; font-weight: 600; font-size: 0.7rem; background: rgba(239,68,68,0.15); padding: 0.2rem 0.6rem; border-radius: 40px; animation: pulse-red 1s infinite; }
+    @keyframes pulse-red { 0%,100% { opacity: 1; } 50% { opacity: 0.6; } }
+
+    .integrity-number { font-size: 2.8rem; font-weight: 800; background: linear-gradient(to right, #22d3ee, #3b82f6); -webkit-background-clip: text; -webkit-text-fill-color: transparent; line-height: 1.2; }
+
+    .demo-controls { margin-top: 1.5rem; padding-top: 1.2rem; border-top: 1px dashed rgba(255,255,255,0.08); }
+    .demo-label { font-size: 0.65rem; text-transform: uppercase; letter-spacing: 1px; color: #f59e0b; background: rgba(245,158,11,0.12); padding: 0.2rem 0.6rem; border-radius: 40px; display: inline-block; margin-bottom: 0.8rem; }
+    .demo-btn-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 0.5rem; }
+    .demo-btn {
+      background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.08);
+      border-radius: 0.8rem; padding: 0.6rem; font-size: 0.7rem; font-weight: 500;
+      color: var(--text-secondary); cursor: pointer; transition: all 0.15s; text-align: center;
+    }
+    .demo-btn:hover { background: rgba(34,211,238,0.1); border-color: rgba(34,211,238,0.3); color: white; }
+    .demo-btn.danger { border-color: rgba(239,68,68,0.3); color: #fca5a5; }
+    .demo-btn.danger:hover { background: rgba(239,68,68,0.15); }
+
+    /* CAMERA PREVIEW with bounding box overlay */
+    .camera-preview {
+      position: relative; width: 100%; aspect-ratio: 4/3;
+      background: #0a111e; border-radius: 1rem; overflow: hidden;
+      border: 1px solid rgba(34,211,238,0.2); margin-bottom: 0.8rem;
+    }
+    .camera-preview video {
+      width: 100%; height: 100%; object-fit: cover;
+      transform: scaleX(-1);
+    }
+    .camera-preview canvas.detection-overlay {
+      position: absolute; inset: 0; width: 100%; height: 100%;
+      transform: scaleX(-1);
+      pointer-events: none;
+    }
+    .camera-preview .camera-overlay {
+      position: absolute; inset: 0; display: flex; flex-direction: column;
+      justify-content: space-between; padding: 0.6rem;
+      pointer-events: none;
+    }
+    .camera-label {
+      background: rgba(0,0,0,0.65); color: #6ee7b7; font-size: 0.65rem;
+      padding: 0.2rem 0.5rem; border-radius: 4px; align-self: flex-start;
+      font-weight: 600; letter-spacing: 0.5px;
+    }
+    .camera-label.alert { color: #fca5a5; background: rgba(239,68,68,0.35); animation: pulse-red 1s infinite; }
+    .camera-scan {
+      position: absolute; left: 0; right: 0; height: 2px;
+      background: linear-gradient(90deg, transparent, #22d3ee, transparent);
+      animation: scanline 3s linear infinite;
+    }
+    @keyframes scanline { 0% { top: 0; } 100% { top: 100%; } }
+    .camera-placeholder {
+      display: flex; flex-direction: column; align-items: center; justify-content: center;
+      height: 100%; color: var(--text-secondary); font-size: 0.8rem; gap: 0.5rem; text-align: center; padding: 1rem;
+    }
+    .camera-placeholder i { font-size: 2rem; color: var(--accent-cyan); opacity: 0.5; }
+
+    .protection-alert {
+      background: rgba(239,68,68,0.15); border: 1px solid rgba(239,68,68,0.3);
+      border-radius: 1rem; padding: 1rem; color: #fca5a5; font-size: 0.85rem;
+      margin-bottom: 1rem; display: none; align-items: center; gap: 0.75rem;
+    }
+    .protection-alert.show { display: flex; }
+
+    .code-editor {
+      background: #0d1424; border: 1px solid rgba(255,255,255,0.08);
+      border-radius: 1rem; padding: 1.2rem; font-family: 'Fira Code', 'Courier New', monospace;
+      font-size: 0.85rem; color: #e2e8f0; width: 100%; min-height: 180px;
+      resize: vertical; outline: none; line-height: 1.6;
+    }
+    .code-editor:focus { border-color: var(--accent-cyan); }
+    .code-output {
+      background: #0a111e; border: 1px solid rgba(255,255,255,0.06);
+      border-radius: 0.8rem; padding: 1rem; font-family: 'Fira Code', monospace;
+      font-size: 0.8rem; color: #a5f3fc; margin-top: 1rem;
+      white-space: pre-wrap; max-height: 200px; overflow-y: auto;
+    }
+    .test-case {
+      display: flex; justify-content: space-between; padding: 0.5rem 0;
+      border-bottom: 1px solid rgba(255,255,255,0.04); font-size: 0.85rem;
+    }
+    .test-case.passed { color: #6ee7b7; }
+    .test-case.failed { color: #fca5a5; }
+
+    .code-screen {
+      display: flex; flex-direction: column; align-items: center; justify-content: center;
+      min-height: 60vh; text-align: center; padding: 2rem;
+    }
+    .code-screen .logo-icon { font-size: 3.5rem; margin-bottom: 1rem; }
+    .code-screen h2 { font-size: 1.8rem; font-weight: 700; margin-bottom: 0.8rem; }
+    .code-screen p { color: var(--text-secondary); margin-bottom: 2rem; max-width: 480px; }
+    .code-input-group { display: flex; gap: 0.5rem; width: 100%; max-width: 420px; margin-bottom: 1rem; }
+    .code-input-group input {
+      flex: 1; padding: 1rem 1.2rem; background: rgba(255,255,255,0.04);
+      border: 1px solid rgba(255,255,255,0.1); border-radius: 1rem;
+      color: white; font-size: 1.1rem; font-family: 'Fira Code', monospace;
+      letter-spacing: 2px; text-align: center; text-transform: uppercase;
+      outline: none; transition: all 0.2s;
+    }
+    .code-input-group input:focus { border-color: var(--accent-cyan); box-shadow: 0 0 0 3px rgba(34,211,238,0.15); }
+    .code-input-group input.error { border-color: var(--danger); animation: shake 0.3s; }
+    @keyframes shake { 0%,100% { transform: translateX(0); } 25% { transform: translateX(-6px); } 75% { transform: translateX(6px); } }
+    .code-hint { font-size: 0.75rem; color: #64748b; margin-top: 1rem; }
+    .code-hint span { background: rgba(34,211,238,0.1); padding: 0.2rem 0.6rem; border-radius: 20px; color: #a5f3fc; font-family: 'Fira Code', monospace; }
+
+    .code-success {
+      display: none; flex-direction: column; align-items: center; gap: 0.5rem;
+      padding: 1.5rem; background: rgba(16,185,129,0.08);
+      border: 1px solid rgba(16,185,129,0.25); border-radius: 1rem;
+      max-width: 420px; width: 100%; margin-top: 1rem;
+    }
+    .code-success.show { display: flex; }
+    .code-success .check { font-size: 2.5rem; color: #6ee7b7; }
+    .code-success .info { font-size: 0.8rem; color: var(--text-secondary); }
+    .code-success .info strong { color: var(--accent-cyan); font-family: 'Fira Code', monospace; }
+
+    .result-gauge { position: relative; width: 160px; height: 160px; margin: 0 auto; }
+    .gauge-value { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; font-weight: 800; font-size: 2.2rem; }
+    .factor-list { list-style: none; margin-top: 1rem; }
+    .factor-list li { display: flex; justify-content: space-between; padding: 0.5rem 0; border-bottom: 1px solid rgba(255,255,255,0.04); font-size: 0.9rem; }
+
+    .data-table { width: 100%; border-collapse: collapse; font-size: 0.9rem; }
+    .data-table th { text-align: left; padding: 0.8rem 0.5rem; color: var(--text-secondary); font-weight: 500; font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.5px; border-bottom: 1px solid rgba(255,255,255,0.06); }
+    .data-table td { padding: 1rem 0.5rem; border-bottom: 1px solid rgba(255,255,255,0.03); }
+    .data-table tr:hover td { background: rgba(34,211,238,0.03); cursor: pointer; }
+
+    .mobile-nav-toggle {
+      display: none; background: rgba(10,18,32,0.9); backdrop-filter: blur(8px);
+      border: none; color: white; font-size: 1.5rem; cursor: pointer;
+      position: fixed; top: 1rem; left: 1rem; z-index: 100;
+      padding: 0.5rem 0.8rem; border-radius: 0.8rem;
+    }
+
+    @media (max-width: 1024px) {
+      .sidebar { transform: translateX(-100%); }
+      .sidebar.open { transform: translateX(0); }
+      .main-content { margin-left: 0; padding-top: 4rem; }
+      .mobile-nav-toggle { display: block; }
+      .exam-layout { flex-direction: column; }
+      .security-panel { width: 100%; position: static; }
+    }
+    @media (max-width: 640px) {
+      .main-content { padding: 1rem; padding-top: 4rem; }
+      .stats-grid { grid-template-columns: 1fr 1fr; }
+      .test-item { flex-direction: column; align-items: flex-start; gap: 0.8rem; }
+      .exam-header { flex-direction: column; align-items: flex-start; }
+    }
+
+    .small-note { font-size: 0.7rem; color: #64748b; line-height: 1.4; }
+    .mt-1 { margin-top: 0.5rem; }
+    .mt-2 { margin-top: 1rem; }
+    .mb-1 { margin-bottom: 0.5rem; }
+    .flex { display: flex; }
+    .gap-1 { gap: 1rem; }
+    .items-center { align-items: center; }
+    .justify-between { justify-content: space-between; }
+    .flex-wrap { flex-wrap: wrap; }
+    .text-center { text-align: center; }
+
+    .webcam-status {
+      display: flex; align-items: center; gap: 0.5rem;
+      font-size: 0.7rem; color: var(--text-secondary);
+      padding: 0.4rem 0.6rem; background: rgba(255,255,255,0.03);
+      border-radius: 0.6rem; margin-bottom: 0.8rem;
+    }
+    .webcam-dot { width: 8px; height: 8px; border-radius: 50%; background: #10b981; animation: pulse-green 2s infinite; flex-shrink: 0; }
+    .webcam-dot.alert { background: #ef4444; animation: pulse-red 1s infinite; }
+    .webcam-dot.scanning { background: #f59e0b; animation: pulse-green 1s infinite; }
+    @keyframes pulse-green { 0%,100% { opacity: 1; } 50% { opacity: 0.4; } }
+
+    .code-metrics {
+      display: grid; grid-template-columns: 1fr 1fr; gap: 0.5rem;
+      font-size: 0.7rem; color: var(--text-secondary); margin-top: 0.8rem;
+      padding: 0.6rem; background: rgba(255,255,255,0.02);
+      border-radius: 0.6rem;
+    }
+    .code-metrics span strong { color: var(--accent-cyan); }
+
+    /* Detection info panel */
+    .detection-info {
+      background: rgba(255,255,255,0.02); border-radius: 0.6rem;
+      padding: 0.6rem; margin-top: 0.6rem; font-size: 0.72rem;
+      border: 1px solid rgba(255,255,255,0.04);
+    }
+    .detection-info .row {
+      display: flex; justify-content: space-between; padding: 0.2rem 0;
+    }
+    .detection-info .row .val { color: var(--accent-cyan); font-weight: 600; }
+    .detection-info .row .val.alert { color: #fca5a5; }
+
+    .detection-history {
+      margin-top: 0.8rem; max-height: 130px; overflow-y: auto;
+      font-size: 0.7rem; font-family: 'Fira Code', monospace;
+      background: rgba(0,0,0,0.25); border-radius: 0.5rem; padding: 0.5rem;
+      line-height: 1.5;
+    }
+    .detection-history .entry { color: var(--text-secondary); }
+    .detection-history .entry.alert { color: #fca5a5; }
+    .detection-history .entry.success { color: #6ee7b7; }
+
+    .model-status {
+      font-size: 0.7rem; padding: 0.4rem 0.6rem;
+      background: rgba(255,255,255,0.03); border-radius: 0.5rem;
+      margin-bottom: 0.6rem; display: flex; align-items: center; gap: 0.4rem;
+    }
+    .model-status.loading { color: #fbbf24; }
+    .model-status.ready { color: #6ee7b7; }
+    .model-status.error { color: #fca5a5; }
+  </style>
+</head>
+<body>
+
+<!-- LOGIN -->
+<div id="loginPage">
+  <div class="login-card">
+    <div class="login-header">
+      <div class="logo-icon"><i class="fas fa-shield-halded"></i></div>
+      <h2>ExamShield</h2>
+      <p>Secure Online Examination Platform</p>
+    </div>
+    <form id="loginForm" onsubmit="event.preventDefault(); handleLogin();">
+      <div class="input-group">
+        <label>Student ID / Email</label>
+        <input type="text" id="loginEmail" value="student@examshield.io" placeholder="student@university.edu">
+      </div>
+      <div class="input-group">
+        <label>Password</label>
+        <div class="password-wrapper">
+          <input type="password" id="loginPassword" value="demo123" placeholder="••••••••">
+          <i class="fas fa-eye toggle-password" onclick="togglePassword()"></i>
+        </div>
+      </div>
+      <div class="login-options">
+        <label class="checkbox-label"><input type="checkbox" checked> Remember me</label>
+        <a href="#" class="forgot-link">Forgot password?</a>
+      </div>
+      <button type="submit" class="btn-primary">Sign in to ExamShield</button>
+    </form>
+    <div class="demo-credentials">
+      <p>Demo credentials: <span>student@examshield.io</span> / <span>demo123</span></p>
+    </div>
+  </div>
+</div>
+
+<!-- MAIN APP -->
+<div class="app-container" id="appContainer" style="display: none;">
+
+  <nav class="sidebar" id="sidebar">
+    <div class="logo-area">
+      <i class="fas fa-shield-halded logo-icon" style="font-size: 1.8rem;"></i>
+      <span class="logo-text">ExamShield</span>
+    </div>
+    <div class="nav-item active" data-page="dashboard" onclick="navigateTo('dashboard')"><i class="fas fa-th-large"></i> Dashboard</div>
+    <div class="nav-item" data-page="upcoming" onclick="navigateTo('upcoming')"><i class="fas fa-calendar-alt"></i> Upcoming Tests</div>
+    <div class="nav-item" data-page="exam" onclick="navigateTo('exam')"><i class="fas fa-pen-fancy"></i> Active Test</div>
+    <div class="nav-item" data-page="history" onclick="navigateTo('history')"><i class="fas fa-history"></i> Test History</div>
+    <div class="nav-item" data-page="analytics" onclick="navigateTo('analytics')"><i class="fas fa-chart-line"></i> Security Analytics</div>
+    <div class="nav-item" data-page="profile" onclick="navigateTo('profile')"><i class="fas fa-user-circle"></i> Profile</div>
+    <div class="nav-item" onclick="handleLogout()"><i class="fas fa-sign-out-alt"></i> Logout</div>
+    <div class="sidebar-footer">
+      AI-assisted visual detection identifies visible external devices within the webcam frame. It does not claim to detect every hidden camera or device.
+    </div>
+  </nav>
+
+  <button class="mobile-nav-toggle" onclick="toggleSidebar()"><i class="fas fa-bars"></i></button>
+
+  <main class="main-content">
+
+    <!-- DASHBOARD -->
+    <div id="dashboardPage" class="page active">
+      <h1 class="page-title">Welcome, Student</h1>
+      <p class="page-sub">Examination security overview · <span class="text-cyan">PROTECT → VERIFY → ADAPT</span></p>
+
+      <div class="stats-grid">
+        <div class="stat-card">
+          <div class="stat-label">Active Test</div>
+          <div class="stat-value" style="font-size: 1.4rem;">Java Full Stack</div>
+          <div class="stat-trend" style="color: var(--accent-cyan);"><i class="fas fa-play-circle"></i> In progress</div>
+        </div>
+        <div class="stat-card"><div class="stat-label">Upcoming Tests</div><div class="stat-value">3</div><div class="stat-trend"><i class="fas fa-calendar"></i> next: tomorrow</div></div>
+        <div class="stat-card"><div class="stat-label">Submitted Tests</div><div class="stat-value">2</div><div class="stat-trend"><i class="fas fa-check-circle"></i> completed</div></div>
+        <div class="stat-card"><div class="stat-label">Average Exam Score</div><div class="stat-value">81%</div><div class="stat-trend"><i class="fas fa-chart-line"></i> +3% this term</div></div>
+      </div>
+
+      <div class="card">
+        <div class="card-header"><h3><i class="fas fa-play-circle text-cyan" style="margin-right: 0.5rem;"></i> Active Test</h3><span class="badge">IN PROGRESS</span></div>
+        <div class="test-item">
+          <div class="test-info">
+            <h4>Java Full Stack Skill Assessment</h4>
+            <div class="test-meta">
+              <span><i class="far fa-clock"></i> 45 minutes</span>
+              <span><i class="far fa-question-circle"></i> 8 questions</span>
+              <span><i class="fas fa-layer-group"></i> MCQ + Coding + Fill in the Blank + Short Answer</span>
+            </div>
+          </div>
+          <button class="btn-small" onclick="startExam()">Continue Test</button>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-header"><h3>Submitted Tests</h3><span class="badge">Recent</span></div>
+        <div class="test-item">
+          <div class="test-info"><h4>Java Programming Assessment</h4><div class="test-meta"><span>Score: 84/100</span><span>Integrity: 94%</span></div></div>
+          <span class="badge" style="background: rgba(16,185,129,0.12); color: #6ee7b7;">Submitted</span>
+        </div>
+        <div class="test-item">
+          <div class="test-info"><h4>Computer Networks Assessment</h4><div class="test-meta"><span>Score: 78/100</span><span>Integrity: 91%</span></div></div>
+          <span class="badge" style="background: rgba(16,185,129,0.12); color: #6ee7b7;">Submitted</span>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-header"><h3>Upcoming Tests</h3><span class="badge">3 scheduled</span></div>
+        <div class="test-item">
+          <div class="test-info"><h4>Advanced Java Programming</h4><div class="test-meta"><span><i class="far fa-calendar"></i> 04 Oct 2026</span><span><i class="far fa-clock"></i> 10:00 AM</span><span><i class="fas fa-layer-group"></i> MCQ + Coding</span></div></div>
+          <span class="badge">Upcoming</span>
+        </div>
+        <div class="test-item">
+          <div class="test-info"><h4>Data Structures & Algorithms</h4><div class="test-meta"><span><i class="far fa-calendar"></i> 07 Oct 2026</span><span><i class="far fa-clock"></i> 2:00 PM</span><span><i class="fas fa-layer-group"></i> MCQ + Coding + Short Answer</span></div></div>
+          <span class="badge">Upcoming</span>
+        </div>
+        <div class="test-item">
+          <div class="test-info"><h4>AI Fundamentals</h4><div class="test-meta"><span><i class="far fa-calendar"></i> 10 Oct 2026</span><span><i class="far fa-clock"></i> 11:00 AM</span><span><i class="fas fa-layer-group"></i> MCQ + Fill in the Blank</span></div></div>
+          <span class="badge">Upcoming</span>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-header"><h3>Recent Security Events</h3></div>
+        <div id="dashboardSecurityEvents" style="font-size: 0.85rem;"></div>
+      </div>
+    </div>
+
+    <!-- UPCOMING -->
+    <div id="upcomingPage" class="page">
+      <h1 class="page-title">Upcoming Tests</h1>
+      <p class="page-sub">Scheduled examinations with security monitoring</p>
+      <div class="card">
+        <div class="test-item">
+          <div class="test-info"><h4>Advanced Java Programming</h4><div class="test-meta"><span><i class="far fa-calendar"></i> 04 Oct 2026</span><span><i class="far fa-clock"></i> 10:00 AM</span><span><i class="far fa-hourglass"></i> 45 min</span><span><i class="fas fa-layer-group"></i> MCQ + Coding</span></div></div>
+          <button class="btn-small btn-outline" onclick="alert('Details for Advanced Java Programming')">View Details</button>
+        </div>
+        <div class="test-item">
+          <div class="test-info"><h4>Data Structures & Algorithms</h4><div class="test-meta"><span><i class="far fa-calendar"></i> 07 Oct 2026</span><span><i class="far fa-clock"></i> 2:00 PM</span><span><i class="far fa-hourglass"></i> 60 min</span><span><i class="fas fa-layer-group"></i> MCQ + Coding + Short Answer</span></div></div>
+          <button class="btn-small btn-outline" onclick="alert('Details for Data Structures')">View Details</button>
+        </div>
+        <div class="test-item">
+          <div class="test-info"><h4>AI Fundamentals</h4><div class="test-meta"><span><i class="far fa-calendar"></i> 10 Oct 2026</span><span><i class="far fa-clock"></i> 11:00 AM</span><span><i class="far fa-hourglass"></i> 30 min</span><span><i class="fas fa-layer-group"></i> MCQ + Fill in the Blank</span></div></div>
+          <button class="btn-small btn-outline" onclick="alert('Details for AI Fundamentals')">View Details</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- EXAM CODE VERIFICATION -->
+    <div id="examCodePage" class="page">
+      <div class="code-screen">
+        <div class="logo-icon"><i class="fas fa-key"></i></div>
+        <h2>Enter Your Individual Examination Code</h2>
+        <p>Enter the unique alphanumeric code provided for your examination. Each code is linked to your personalized question set.</p>
+        <div class="code-input-group">
+          <input type="text" id="examCodeInput" placeholder="EXM7-K4P9-X2" maxlength="14" autocomplete="off">
+        </div>
+        <div id="codeError" style="color: #fca5a5; font-size: 0.85rem; display: none; margin-bottom: 0.8rem;">
+          <i class="fas fa-times-circle"></i> Invalid Examination Code
+        </div>
+        <button class="btn-primary" style="max-width: 420px;" onclick="verifyExamCode()">
+          <i class="fas fa-check-circle"></i> Verify & Continue
+        </button>
+        <div class="code-hint">Demo valid codes: <span>EXM7K4P9X2</span> · <span>EXM3A8B2C5</span> · <span>EXM9Z6Y1W4</span></div>
+        <div class="code-success" id="codeSuccess">
+          <div class="check"><i class="fas fa-check-circle"></i></div>
+          <div style="font-weight: 600;">Personalized Examination Set Generated ✓</div>
+          <div class="info">Exam Code: <strong id="verifiedCode">-</strong></div>
+          <div class="info">Question Set: Individualized</div>
+          <button class="btn-primary" style="margin-top: 0.8rem; width: auto; padding: 0.6rem 2rem;" onclick="proceedToExam()">
+            Enter Examination <i class="fas fa-arrow-right"></i>
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- ACTIVE EXAM -->
+    <div id="examPage" class="page">
+      <div class="exam-header">
+        <div>
+          <h2 id="examTitle">Java Full Stack Skill Assessment</h2>
+          <div style="font-size: 0.8rem; color: var(--text-secondary);">
+            Question <span id="currentQDisplay">1</span> of <span id="totalQDisplay">8</span> ·
+            <span id="progressPercent">12%</span> completed
+          </div>
+        </div>
+        <div style="display: flex; align-items: center; gap: 1.5rem; flex-wrap: wrap;">
+          <div>
+            <div style="font-size: 0.7rem; color: var(--text-secondary);">Exam Started</div>
+            <div id="examStartTime" style="font-size: 0.9rem; font-weight: 600;">--:--:--</div>
+          </div>
+          <div>
+            <div style="font-size: 0.7rem; color: var(--text-secondary);">Current Time</div>
+            <div id="currentTimeDisplay" style="font-size: 0.9rem; font-weight: 600;">--:--:--</div>
+          </div>
+          <div>
+            <div style="font-size: 0.7rem; color: var(--text-secondary);">Time Remaining</div>
+            <div class="timer" id="examTimer">45:00</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="exam-layout">
+        <div class="exam-main">
+          <div class="protection-alert" id="protectionAlert">
+            <i class="fas fa-exclamation-triangle"></i>
+            <span><strong>⚠ EXTERNAL DEVICE DETECTED</strong><br><small>QUESTION CONTENT PROTECTED</small></span>
+          </div>
+          <div class="question-card" id="questionCard">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem; flex-wrap: wrap; gap: 0.5rem;">
+              <span class="badge" id="questionProtectionBadge">Content Protection: NORMAL</span>
+              <span style="font-size: 0.8rem; color: var(--text-secondary);" id="questionTypeBadge">MCQ</span>
+            </div>
+            <div id="questionContent"></div>
+          </div>
+
+          <div class="card" style="margin-top: 1.5rem;">
+            <div class="card-header"><h3>Question Navigator</h3></div>
+            <div class="question-nav-panel" id="questionNavPanel"></div>
+            <div style="display: flex; gap: 1rem; flex-wrap: wrap; margin-top: 1.5rem;">
+              <button class="btn-small" onclick="prevQuestion()"><i class="fas fa-arrow-left"></i> Previous</button>
+              <button class="btn-small" onclick="toggleMarkReview()"><i class="fas fa-flag"></i> Mark for Review</button>
+              <button class="btn-small" onclick="nextQuestion()">Next <i class="fas fa-arrow-right"></i></button>
+              <button class="btn-primary" style="width: auto; padding: 0.6rem 1.5rem; margin-left: auto;" onclick="submitExam()">Submit Test</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- SECURITY PANEL -->
+        <div class="security-panel" id="securityPanel">
+          <div class="card-header" style="margin-bottom: 1rem;">
+            <h3><i class="fas fa-shield-alt text-cyan"></i> Security Monitoring</h3>
+            <span class="badge">LIVE</span>
+          </div>
+
+          <div style="font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.5px; color: var(--text-secondary); margin-bottom: 0.4rem;">
+            AI-Assisted External Device Detection
+          </div>
+
+          <div class="model-status loading" id="modelStatus">
+            <i class="fas fa-circle-notch fa-spin"></i>
+            <span id="modelStatusText">Loading vision model…</span>
+          </div>
+
+          <div class="camera-preview" id="cameraPreview">
+            <video id="webcamVideo" autoplay playsinline muted></video>
+            <canvas id="detectionOverlay" class="detection-overlay"></canvas>
+            <div class="camera-scan" id="cameraScan"></div>
+            <div class="camera-overlay">
+              <div class="camera-label" id="cameraLabel">● LIVE — AI DEVICE DETECTION</div>
+              <div class="camera-label" id="cameraStatusLabel" style="align-self: flex-end;">Status: Scanning</div>
+            </div>
+          </div>
+
+          <div class="webcam-status">
+            <span class="webcam-dot scanning" id="webcamDot"></span>
+            <span id="webcamStatusText">Initializing…</span>
+          </div>
+
+          <div class="detection-info" id="detectionInfo">
+            <div class="row"><span>Camera Monitoring</span><span class="val" id="camMonitoringStatus">● INITIALIZING</span></div>
+            <div class="row"><span>Object Detection</span><span class="val" id="objDetectionStatus">● INITIALIZING</span></div>
+            <div class="row"><span>Detected Object</span><span class="val" id="detectedObjectLabel">None</span></div>
+            <div class="row"><span>Confidence</span><span class="val" id="confidenceLabel">—</span></div>
+            <div class="row"><span>Protection</span><span class="val" id="protectionLabel">NORMAL</span></div>
+          </div>
+
+          <div class="detection-history" id="detectionHistory">
+            <div class="entry">Waiting for camera…</div>
+          </div>
+
+          <div class="security-item" style="margin-top: 0.8rem;">Content Protection <span id="contentProtectionStatus" class="status-normal">NORMAL</span></div>
+          <div class="security-item">Tab/Focus Monitoring <span class="status-active">ACTIVE</span></div>
+          <div class="security-item">Behavioral Verification <span class="status-active">ACTIVE</span></div>
+          <div class="security-item">Interaction Monitoring <span class="status-active">ACTIVE</span></div>
+
+          <div style="text-align: center; margin: 1.2rem 0;">
+            <div style="font-size: 0.8rem; color: var(--text-secondary);">Adaptive Integrity Confidence</div>
+            <div class="integrity-number" id="liveIntegrityValue">96%</div>
+            <div class="small-note">Calculated from multiple interaction signals</div>
+          </div>
+
+          <div style="margin: 1rem 0; font-size: 0.8rem;">
+            <div style="display: flex; justify-content: space-between; padding: 0.3rem 0;"><span>Typing Speed</span> <span id="typingSpeedLabel">42 WPM</span></div>
+            <div style="display: flex; justify-content: space-between; padding: 0.3rem 0;"><span>Tab Switches</span> <span id="tabSwitchLabel" class="text-warning">0</span></div>
+          </div>
+
+          <div class="demo-controls">
+            <div class="demo-label">DEMO CONTROLS (explicit manual trigger)</div>
+            <div class="demo-btn-grid">
+              <button class="demo-btn danger" onclick="demoDeviceDetection()">DEMO DEVICE DETECTION</button>
+              <button class="demo-btn" onclick="demoDeviceCleared()">DEMO DEVICE CLEARED</button>
+              <button class="demo-btn" onclick="simulateEvent('tabswitch')">Simulate Tab Switch</button>
+              <button class="demo-btn" onclick="resetSecuritySignals()">Reset Signals</button>
+            </div>
+            <p class="small-note" style="margin-top: 0.8rem;">
+              The vision model detects smartphone-like objects appearing in the webcam view. Demo buttons are explicitly manual and never trigger automatically.
+            </p>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- RESULT -->
+    <div id="resultPage" class="page">
+      <h1 class="page-title">Examination Result</h1>
+      <p class="page-sub">Java Full Stack Skill Assessment · Submitted</p>
+
+      <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem; margin-bottom: 1.5rem;">
+        <div class="card" style="text-align: center;">
+          <div style="font-size: 0.9rem; color: var(--text-secondary);">ACADEMIC RESULT</div>
+          <div style="font-size: 3.5rem; font-weight: 800; background: linear-gradient(to right, #f0f9ff, #bae6fd); -webkit-background-clip: text; -webkit-text-fill-color: transparent;" id="finalExamScore">84</div>
+          <div style="font-size: 0.9rem; color: var(--text-secondary);">out of 100</div>
+        </div>
+        <div class="card" style="text-align: center;">
+          <div style="font-size: 0.9rem; color: var(--text-secondary);">ADAPTIVE INTEGRITY CONFIDENCE</div>
+          <div class="result-gauge" style="margin: 1rem auto;">
+            <canvas id="integrityGauge" width="160" height="160"></canvas>
+            <div class="gauge-value" id="finalIntegrityValue">94%</div>
+          </div>
+          <div class="small-note">Calculated from multiple examination interaction signals. Separate from academic marks.</div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-header"><h3>Performance Breakdown</h3></div>
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
+          <ul class="factor-list">
+            <li><span>MCQ Score</span> <span id="mcqScore">32/40</span></li>
+            <li><span>Coding Score</span> <span id="codingScore">30/35</span></li>
+            <li><span>Fill in the Blank</span> <span id="fillScore">10/10</span></li>
+            <li><span>Short Answer</span> <span id="shortScore">12/15</span></li>
+          </ul>
+          <ul class="factor-list">
+            <li><span>Correct Answers</span> <span id="correctAnswers">16</span></li>
+            <li><span>Incorrect Answers</span> <span id="incorrectAnswers">3</span></li>
+            <li><span>Unanswered</span> <span id="unanswered">1</span></li>
+            <li><span>Accuracy</span> <span id="accuracy">80%</span></li>
+          </ul>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-header"><h3>Security Analysis</h3></div>
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
+          <ul class="factor-list">
+            <li><span>Tab Switches</span> <span id="tabSwitchesResult" class="text-warning">1</span></li>
+            <li><span>Focus Violations</span> <span id="focusViolationsResult" class="text-warning">1</span></li>
+            <li><span>Capture Protection Events</span> <span id="captureEventsResult">0</span></li>
+            <li><span>Behavioral Anomalies</span> <span id="anomaliesResult">0</span></li>
+          </ul>
+          <ul class="factor-list">
+            <li><span>Typing Consistency</span> <span id="typingConsistency" class="text-success">Normal</span></li>
+            <li><span>Mouse Consistency</span> <span id="mouseConsistency" class="text-success">Normal</span></li>
+            <li><span>Response Pattern</span> <span id="responsePattern" class="text-success">Normal</span></li>
+            <li><span>Time Taken</span> <span id="timeTaken">27 min 42 sec</span></li>
+          </ul>
+        </div>
+      </div>
+
+      <!-- CAMERA MONITORING RESULT (populated on submit) -->
+      <div id="resultCameraSection"></div>
+
+      <div class="card">
+        <div class="card-header"><h3>Security Event Timeline</h3></div>
+        <div id="timelineList" style="font-size: 0.9rem; line-height: 1.8;"></div>
+      </div>
+
+      <div style="display: flex; gap: 1rem; flex-wrap: wrap;">
+        <button class="btn-primary" style="width: auto;" onclick="navigateTo('history')">View Test History</button>
+        <button class="btn-primary" style="width: auto; background: rgba(255,255,255,0.08); box-shadow: none;" onclick="navigateTo('dashboard')">Back to Dashboard</button>
+      </div>
+    </div>
+
+    <!-- HISTORY -->
+    <div id="historyPage" class="page">
+      <h1 class="page-title">Test History</h1>
+      <p class="page-sub">Previous examinations and detailed results</p>
+      <div class="card">
+        <table class="data-table">
+          <thead>
+            <tr><th>Examination</th><th>Date</th><th>Score</th><th>Integrity Confidence</th><th>Security Events</th><th>Status</th></tr>
+          </thead>
+          <tbody id="historyTableBody"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- ANALYTICS -->
+    <div id="analyticsPage" class="page">
+      <h1 class="page-title">Security Analytics</h1>
+      <p class="page-sub">Platform-wide security intelligence</p>
+      <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem;">
+        <div class="card"><div class="card-header"><h3>Total Examinations</h3></div><div style="font-size: 2.5rem; font-weight: 700;" class="text-cyan">128</div></div>
+        <div class="card"><div class="card-header"><h3>Total Focus Violations</h3></div><div style="font-size: 2.5rem; font-weight: 700;" class="text-warning">42</div></div>
+        <div class="card"><div class="card-header"><h3>Content Protection Events</h3></div><div style="font-size: 2.5rem; font-weight: 700;" class="text-danger">17</div></div>
+        <div class="card"><div class="card-header"><h3>Average Integrity Confidence</h3></div><div style="font-size: 2.5rem; font-weight: 700;" class="text-success">92%</div></div>
+        <div class="card"><div class="card-header"><h3>Behavioral Alerts</h3></div><div style="font-size: 2.5rem; font-weight: 700;" class="text-warning">23</div></div>
+        <div class="card"><div class="card-header"><h3>Average Typing Speed</h3></div><div style="font-size: 2.5rem; font-weight: 700;" class="text-cyan">43 WPM</div></div>
+      </div>
+      <div class="card small-note">
+        AI-assisted visual detection identifies visible external devices within the webcam frame. It does not claim to detect every hidden camera or external device. Simulated events are explicitly labeled.
+      </div>
+    </div>
+
+    <!-- PROFILE -->
+    <div id="profilePage" class="page">
+      <h1 class="page-title">Profile</h1>
+      <p class="page-sub">Student account and security preferences</p>
+      <div class="card">
+        <p><strong>Name:</strong> Alex Johnson</p>
+        <p><strong>Student ID:</strong> STU-2026-0421</p>
+        <p><strong>Email:</strong> student@examshield.io</p>
+        <p><strong>Integrity Confidence (rolling):</strong> 94%</p>
+      </div>
+    </div>
+
+  </main>
+</div>
+
+<script>
+  const state = {
+    loggedIn: false,
+    examActive: false,
+    examSubmitted: false,
+    verifiedExamCode: null,
+    currentQuestionIndex: 0,
+    answers: {},
+    markedForReview: new Set(),
+    integrityScore: 96,
+    securityEvents: [],
+    tabSwitchCount: 0,
+    focusViolationCount: 0,
+    captureProtectionActive: false,
+    examStartTime: null,
+    examDuration: 45 * 60,
+    examTimeRemaining: 45 * 60,
+    timerInterval: null,
+    clockInterval: null,
+    typingSpeed: 42,
+    keyInterval: 182,
+    backspaceCount: 7,
+    mouseActivity: 'Normal',
+    idleDuration: 2.4,
+
+    // ── Camera session config (per-exam) ─────────────────────
+    webcamStream: null,
+    DEVICE_DETECTION_THRESHOLD: 0.75,
+    REQUIRED_CONFIRMATION_FRAMES: 3,
+    REQUIRED_ABSENCE_FRAMES: 4,
+
+    // ── Per-exam camera session (recreated on every exam start) ──
+    cameraSession: null,
+
+    // Cached COCO-SSD model (stateless — safe to reuse across sessions).
+    // The MediaStream and per-session counters are NOT cached.
+    cocoModel: null,
+    modelReady: false,
+
+    // Legacy loop handles (still used by the RAF loop)
+    detectionLoopActive: false,
+    detectionRequestId: null,
+
+    // Last exam's camera summary — persisted for the result page
+    lastExamCameraSummary: null,
+
+    // Coding metrics
+    codingMetrics: {},
+
+    questions: [],
+
+    questionBank: {
+      mcq: [
+        { id: 'm1', text: 'Which keyword is used to inherit a class in Java?', options: ['implements', 'extends', 'inherits', 'super'], correct: 1 },
+        { id: 'm2', text: 'What is the default value of a boolean instance variable in Java?', options: ['true', 'false', '0', 'null'], correct: 1 },
+        { id: 'm3', text: 'Which collection class allows key-value pairs?', options: ['ArrayList', 'HashMap', 'HashSet', 'LinkedList'], correct: 1 },
+        { id: 'm4', text: 'What is the size of an int in Java?', options: ['8 bits', '16 bits', '32 bits', '64 bits'], correct: 2 },
+        { id: 'm5', text: 'Which method is used to start a thread in Java?', options: ['run()', 'start()', 'execute()', 'begin()'], correct: 1 },
+        { id: 'm6', text: 'What does JVM stand for?', options: ['Java Virtual Machine', 'Java Variable Method', 'Just Virtual Machine', 'Java Verified Model'], correct: 0 },
+        { id: 'm7', text: 'Which keyword is used to prevent inheritance in Java?', options: ['static', 'final', 'private', 'sealed'], correct: 1 },
+        { id: 'm8', text: 'Which package contains the Scanner class?', options: ['java.io', 'java.util', 'java.lang', 'java.net'], correct: 1 }
+      ],
+      coding: [
+        { id: 'c1', text: 'Reverse a String', description: 'Write a function that reverses a given string.', example: 'Input: "hello" → Output: "olleh"', constraints: 'String length ≤ 1000', language: 'Java',
+          codeTemplate: 'public class Main {\n  public static String reverse(String s) {\n    // Write your solution\n    return "";\n  }\n}',
+          testCases: [{input: '"hello"', expected: '"olleh"'}, {input: '"world"', expected: '"dlrow"'}, {input: '"ExamShield"', expected: '"dleihSmaxE"'}, {input: '"a"', expected: '"a"'}, {input: '"abc"', expected: '"cba"'}] },
+        { id: 'c2', text: 'Find Maximum Number', description: 'Write a function that returns the maximum number in an array.', example: 'Input: [1, 5, 3, 9, 2] → Output: 9', constraints: 'Array length ≤ 1000', language: 'Java',
+          codeTemplate: 'public class Main {\n  public static int findMax(int[] arr) {\n    // Write your solution\n    return 0;\n  }\n}',
+          testCases: [{input: '[1, 5, 3, 9, 2]', expected: '9'}, {input: '[-3, -7, -1, -5]', expected: '-1'}, {input: '[42]', expected: '42'}, {input: '[0, -1, -2]', expected: '0'}, {input: '[5, 5, 5]', expected: '5'}] },
+        { id: 'c3', text: 'Check Palindrome', description: 'Write a function that checks if a string is a palindrome.', example: 'Input: "racecar" → Output: true', constraints: 'String length ≤ 1000', language: 'Java',
+          codeTemplate: 'public class Main {\n  public static boolean isPalindrome(String s) {\n    // Write your solution\n    return false;\n  }\n}',
+          testCases: [{input: '"racecar"', expected: 'true'}, {input: '"hello"', expected: 'false'}, {input: '"a"', expected: 'true'}, {input: '"abba"', expected: 'true'}, {input: '"abc"', expected: 'false'}] },
+        { id: 'c4', text: 'Fibonacci Number', description: 'Write a function that returns the nth Fibonacci number.', example: 'Input: 6 → Output: 8', constraints: 'n ≤ 30', language: 'Java',
+          codeTemplate: 'public class Main {\n  public static int fib(int n) {\n    // Write your solution\n    return 0;\n  }\n}',
+          testCases: [{input: '0', expected: '0'}, {input: '1', expected: '1'}, {input: '6', expected: '8'}, {input: '10', expected: '55'}, {input: '15', expected: '610'}] }
+      ],
+      fill: [
+        { id: 'f1', text: 'The keyword used to create an object in Java is ______.', correct: 'new' },
+        { id: 'f2', text: 'The ______ keyword is used to define a constant in Java.', correct: 'final' },
+        { id: 'f3', text: 'The ______ block is always executed in a try-catch structure.', correct: 'finally' },
+        { id: 'f4', text: 'In Java, ______ is the keyword used to refer to the current object.', correct: 'this' }
+      ],
+      short: [
+        { id: 's1', text: 'Explain the role of inheritance in object-oriented programming in 3–5 sentences.' },
+        { id: 's2', text: 'Describe the difference between abstract classes and interfaces in Java in 3–5 sentences.' },
+        { id: 's3', text: 'Explain the concept of polymorphism in Java with a brief example in 3–5 sentences.' },
+        { id: 's4', text: 'Describe how exception handling works in Java in 3–5 sentences.' }
+      ],
+      tf: [
+        { id: 'tf1', text: 'Java supports multiple inheritance through classes.', correct: 1 },
+        { id: 'tf2', text: 'Java is a platform-independent language.', correct: 0 },
+        { id: 'tf3', text: 'The "final" keyword can be applied to methods.', correct: 0 },
+        { id: 'tf4', text: 'Java supports operator overloading.', correct: 1 }
+      ]
+    }
+  };
+
+  const VALID_CODES = ['EXM7K4P9X2', 'EXM3A8B2C5', 'EXM9Z6Y1W4', 'EXM1B5N8M3', 'EXM6T2R7Q9'];
+
+  // ==================== LOGIN ====================
+  function handleLogin() {
+    const email = document.getElementById('loginEmail').value.trim();
+    const pass = document.getElementById('loginPassword').value.trim();
+    if (email && pass) {
+      state.loggedIn = true;
+      document.getElementById('loginPage').style.display = 'none';
+      document.getElementById('appContainer').style.display = 'flex';
+      navigateTo('dashboard');
+      startClock();
+      renderDashboard();
+    } else {
+      alert('Please enter email and password (any credentials work for demo).');
+    }
+  }
+
+  function togglePassword() {
+    const input = document.getElementById('loginPassword');
+    input.type = input.type === 'password' ? 'text' : 'password';
+  }
+
+  function handleLogout() {
+    state.loggedIn = false;
+    state.examActive = false;
+    state.examSubmitted = false;
+    stopWebcam();
+    if (state.timerInterval) clearInterval(state.timerInterval);
+    if (state.clockInterval) clearInterval(state.clockInterval);
+    document.getElementById('loginPage').style.display = 'flex';
+    document.getElementById('appContainer').style.display = 'none';
+  }
+
+  function navigateTo(page) {
+    if (page === 'exam' && !state.examActive && !state.examSubmitted) {
+      if (!state.verifiedExamCode) { navigateTo('examCode'); return; }
+      startExamWithVerifiedCode();
+      return;
+    }
+    if (page === 'exam' && state.examSubmitted) { navigateTo('result'); return; }
+    document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+    const target = document.getElementById(page + 'Page');
+    if (target) target.classList.add('active');
+
+    document.querySelectorAll('.nav-item').forEach(item => {
+      item.classList.remove('active');
+      if (item.dataset.page === page) item.classList.add('active');
+    });
+
+    if (page === 'dashboard') renderDashboard();
+    if (page === 'history') renderHistory();
+  }
+
+  function toggleSidebar() {
+    document.getElementById('sidebar').classList.toggle('open');
+  }
+
+  // ==================== DASHBOARD ====================
+  function renderDashboard() {
+    const events = state.securityEvents.slice(-5).map(e => `
+      <div style="padding: 0.4rem 0; border-bottom: 1px solid rgba(255,255,255,0.04);">
+        <span style="color: var(--text-secondary);">${e.time}</span> — ${e.desc}
+      </div>
+    `).join('');
+    document.getElementById('dashboardSecurityEvents').innerHTML = events || '<p style="color: var(--text-secondary);">No events yet.</p>';
+  }
+
+  // ==================== CLOCK ====================
+  function startClock() {
+    if (state.clockInterval) clearInterval(state.clockInterval);
+    state.clockInterval = setInterval(() => {
+      const now = new Date();
+      const timeStr = now.toLocaleTimeString('en-US', { hour12: true, hour: '2-digit', minute: '2-digit', second: '2-digit' });
+      const el = document.getElementById('currentTimeDisplay');
+      if (el) el.innerText = timeStr;
+    }, 1000);
+  }
+
+  // ==================== EXAM CODE ====================
+  function verifyExamCode() {
+    const input = document.getElementById('examCodeInput');
+    const code = input.value.trim().toUpperCase().replace(/[^A-Z0-9]/g, '');
+    const errorEl = document.getElementById('codeError');
+    const successEl = document.getElementById('codeSuccess');
+
+    if (VALID_CODES.includes(code)) {
+      errorEl.style.display = 'none';
+      input.classList.remove('error');
+      state.verifiedExamCode = code;
+      document.getElementById('verifiedCode').innerText = formatCode(code);
+      successEl.classList.add('show');
+      addSecurityEvent('normal', 'Examination code verified: ' + formatCode(code));
+    } else {
+      errorEl.style.display = 'block';
+      input.classList.add('error');
+      successEl.classList.remove('show');
+      setTimeout(() => input.classList.remove('error'), 400);
+    }
+  }
+
+  function formatCode(code) {
+    if (code.length === 10) return code.slice(0,4) + '-' + code.slice(4,8) + '-' + code.slice(8);
+    return code;
+  }
+
+  function proceedToExam() {
+    if (!state.verifiedExamCode) return;
+    startExamWithVerifiedCode();
+  }
+
+  // ==================== DETERMINISTIC QUESTION SET ====================
+  function seededShuffle(arr, seed) {
+    const result = [...arr];
+    let s = 0;
+    for (let i = 0; i < seed.length; i++) s = (s * 31 + seed.charCodeAt(i)) >>> 0;
+    const random = () => { s = (s * 1664525 + 1013904223) >>> 0; return s / 4294967296; };
+    for (let i = result.length - 1; i > 0; i--) {
+      const j = Math.floor(random() * (i + 1));
+      [result[i], result[j]] = [result[j], result[i]];
+    }
+    return result;
+  }
+
+  function generateIndividualQuestionSet(code) {
+    const seed = code;
+    const pick = (arr, n) => seededShuffle(arr, seed + arr.length).slice(0, n);
+    const selectedMcq = pick(state.questionBank.mcq, 3);
+    const selectedCoding = pick(state.questionBank.coding, 2);
+    const selectedFill = pick(state.questionBank.fill, 1);
+    const selectedShort = pick(state.questionBank.short, 1);
+    const selectedTf = pick(state.questionBank.tf, 1);
+    const questions = [
+      { ...selectedMcq[0], type: 'MCQ' },
+      { ...selectedMcq[1], type: 'MCQ' },
+      { ...selectedCoding[0], type: 'Coding' },
+      { ...selectedFill[0], type: 'Fill in the Blank' },
+      { ...selectedShort[0], type: 'Short Answer' },
+      { ...selectedTf[0], type: 'True/False' },
+      { ...selectedMcq[2], type: 'MCQ' },
+      { ...selectedCoding[1], type: 'Coding' }
+    ];
+    return questions.map((q, i) => ({ ...q, id: i + 1 }));
+  }
+
+  // ==================== EXAM START ====================
+  async function startExamWithVerifiedCode() {
+    state.questions = generateIndividualQuestionSet(state.verifiedExamCode);
+    state.examActive = true;
+    state.examSubmitted = false;
+    state.currentQuestionIndex = 0;
+    state.answers = {};
+    state.markedForReview.clear();
+    state.integrityScore = 96;
+    state.captureProtectionActive = false;
+    state.tabSwitchCount = 0;
+    state.focusViolationCount = 0;
+    state.examTimeRemaining = state.examDuration;
+    state.examStartTime = new Date();
+    state.backspaceCount = 0;
+    state.codingMetrics = {};
+
+    // ── Kill any stale RAF loop / flags from a previous run ────
+    state.detectionLoopActive = false;
+    if (state.detectionRequestId) {
+      cancelAnimationFrame(state.detectionRequestId);
+      state.detectionRequestId = null;
+    }
+
+    // ── NEW camera session for THIS exam attempt ─────────────
+    state.cameraSession = {
+      initialized: false,
+      permissionGranted: false,
+      streamActive: false,
+      monitoringStarted: false,
+      framesAnalyzed: false,
+      deviceDetectionEnabled: false,
+      modelLoadFailed: false,
+      deviceDetected: false,
+      detectionEvents: [],
+      consecutiveDetections: 0,
+      consecutiveAbsences: 0,
+      lastDetection: null,
+      detectionHistory: [],
+      startedAt: null,
+      stoppedAt: null,
+      framesProcessed: 0
+    };
+
+    state.securityEvents = [
+      { time: new Date().toLocaleTimeString('en-US', { hour12: false }), type: 'normal', desc: 'Exam Started' },
+      { time: new Date().toLocaleTimeString('en-US', { hour12: false }), type: 'normal', desc: 'Question set loaded from code ' + formatCode(state.verifiedExamCode) }
+    ];
+
+    const startStr = state.examStartTime.toLocaleTimeString('en-US', { hour12: true, hour: '2-digit', minute: '2-digit', second: '2-digit' });
+    document.getElementById('examStartTime').innerText = startStr;
+
+    navigateTo('exam');
+    renderExam();
+    startTimer();
+    startClock();
+
+    document.removeEventListener('visibilitychange', handleVisibilityChange);
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    window.removeEventListener('blur', handleWindowBlur);
+    window.addEventListener('blur', handleWindowBlur);
+    window.removeEventListener('beforeunload', handleBeforeUnload);
+    window.addEventListener('beforeunload', handleBeforeUnload);
+
+    history.pushState(null, null, location.href);
+    window.onpopstate = function() { history.pushState(null, null, location.href); };
+
+    // Reset the security panel UI to INITIALIZING before camera init
+    const camMon = document.getElementById('camMonitoringStatus');
+    const objDet = document.getElementById('objDetectionStatus');
+    if (camMon) camMon.innerText = '● INITIALIZING';
+    if (objDet) objDet.innerText = '● INITIALIZING';
+    const histEl = document.getElementById('detectionHistory');
+    if (histEl) histEl.innerHTML = '<div class="entry">Waiting for camera…</div>';
+
+    // ── FRESH camera init for this session ────────────────────
+    await initCameraProtection();
+  }
+
+  // ==================== CAMERA PROTECTION ====================
+  async function initCameraProtection() {
+    const video   = document.getElementById('webcamVideo');
+    const dot     = document.getElementById('webcamDot');
+    const statusText = document.getElementById('webcamStatusText');
+    const modelStatus = document.getElementById('modelStatus');
+    const camMon  = document.getElementById('camMonitoringStatus');
+    const objDet  = document.getElementById('objDetectionStatus');
+
+    const session = state.cameraSession;
+    if (!session) return;
+
+    // ── Step 0: HARD RESET any prior video element state ──────
+    // This is THE critical fix for the "second run" bug.
+    try {
+      if (video.srcObject) {
+        video.srcObject.getTracks?.().forEach(t => t.stop());
+        video.srcObject = null;
+      }
+    } catch (_) {}
+    video.style.display = 'block';
+    const oldPh = document.getElementById('cameraPlaceholder');
+    if (oldPh) oldPh.remove();
+
+    // Clear any leftover overlay drawing
+    const overlay = document.getElementById('detectionOverlay');
+    if (overlay) {
+      const octx = overlay.getContext('2d');
+      octx.clearRect(0, 0, overlay.width, overlay.height);
+    }
+
+    // ── Step 1: Fresh MediaStream every exam ──────────────────
+    let stream;
+    try {
+      stream = await navigator.mediaDevices.getUserMedia({
+        video: { width: { ideal: 640 }, height: { ideal: 480 }, facingMode: 'user' },
+        audio: false
+      });
+    } catch (err) {
+      // Permission denied or no camera
+      video.style.display = 'none';
+      const preview = document.getElementById('cameraPreview');
+      const ph = document.createElement('div');
+      ph.id = 'cameraPlaceholder';
+      ph.className = 'camera-placeholder';
+      ph.innerHTML =
+        '<i class="fas fa-video-slash"></i>' +
+        '<div><strong>Camera Monitoring: BLOCKED</strong></div>' +
+        '<div style="font-size:0.7rem;">Please allow camera access in your browser to continue secure monitoring.</div>';
+      preview.appendChild(ph);
+
+      dot.classList.add('alert');
+      dot.classList.remove('scanning');
+      statusText.innerText = 'Camera permission blocked';
+      camMon.innerText = '✕ BLOCKED';
+      objDet.innerText = '✕ DISABLED';
+      modelStatus.className = 'model-status error';
+      modelStatus.innerHTML = '<i class="fas fa-exclamation-triangle"></i><span>Camera permission required</span>';
+
+      session.permissionGranted = false;
+      session.streamActive = false;
+      session.monitoringStarted = false;
+      session.deviceDetectionEnabled = false;
+      logDetection('Camera permission denied — device detection unavailable', 'alert');
+      return;
+    }
+
+    // We have a real, fresh stream
+    state.webcamStream = stream;
+    session.permissionGranted = true;
+    session.initialized = true;
+    session.streamActive = true;
+    session.startedAt = new Date().toISOString();
+
+    // Attach to video element fresh
+    video.srcObject = stream;
+    video.muted = true;
+    video.playsInline = true;
+    try { await video.play(); } catch (_) {}
+
+    // Wait for metadata so videoWidth > 0 before starting detection
+    if (!video.videoWidth) {
+      await new Promise(res => {
+        const onMeta = () => { video.removeEventListener('loadedmetadata', onMeta); res(); };
+        video.addEventListener('loadedmetadata', onMeta);
+        setTimeout(res, 1500); // safety net
+      });
+    }
+
+    dot.classList.remove('alert');
+    dot.classList.add('scanning');
+    statusText.innerText = 'Camera active · Loading vision model…';
+    camMon.innerText = '● ACTIVE';
+    logDetection('Camera stream initialized', 'success');
+
+    // Show scanline again (may have been hidden by previous stopWebcam)
+    const scan = document.getElementById('cameraScan');
+    if (scan) scan.style.display = 'block';
+
+    // ── Step 2: Load / reuse COCO-SSD ─────────────────────────
+    modelStatus.className = 'model-status loading';
+    modelStatus.innerHTML = '<i class="fas fa-circle-notch fa-spin"></i><span>Loading AI vision model (COCO-SSD)…</span>';
+
+    try {
+      if (typeof cocoSsd === 'undefined') throw new Error('COCO-SSD script not loaded');
+      if (!state.cocoModel) {
+        state.cocoModel = await cocoSsd.load({ base: 'lite_mobilenet_v2' });
+      }
+      state.modelReady = true;
+      session.deviceDetectionEnabled = true;
+      modelStatus.className = 'model-status ready';
+      modelStatus.innerHTML = '<i class="fas fa-check-circle"></i><span>Vision model ready · COCO-SSD</span>';
+      statusText.innerText = 'Camera active · AI detection running';
+      objDet.innerText = '● SCANNING';
+      logDetection('Vision model loaded — detection active', 'success');
+
+      // ── Step 3: Start frame analysis for THIS session ───────
+      session.monitoringStarted = true;
+      startDetectionLoop();
+    } catch (err) {
+      console.error('Model load error:', err);
+      state.modelReady = false;
+      session.deviceDetectionEnabled = false;
+      session.modelLoadFailed = true;
+      modelStatus.className = 'model-status error';
+      modelStatus.innerHTML = '<i class="fas fa-exclamation-triangle"></i><span>Visual device detection model unavailable</span>';
+      statusText.innerText = 'Model unavailable — visual detection disabled';
+      objDet.innerText = '✕ UNAVAILABLE';
+      logDetection('Vision model failed to load — detection unavailable', 'alert');
+    }
+  }
+
+  function stopWebcam() {
+    const session = state.cameraSession;
+
+    // Stop RAF loop
+    if (session) session.monitoringStarted = false;
+    if (state.detectionRequestId) {
+      cancelAnimationFrame(state.detectionRequestId);
+      state.detectionRequestId = null;
+    }
+    state.detectionLoopActive = false;
+
+    // Stop every track on the current stream
+    if (state.webcamStream) {
+      try {
+        state.webcamStream.getTracks().forEach(t => { t.stop(); });
+      } catch (_) {}
+      state.webcamStream = null;
+    }
+
+    // Detach from <video> so next init starts clean
+    const video = document.getElementById('webcamVideo');
+    if (video) {
+      try {
+        if (video.srcObject) {
+          video.srcObject.getTracks?.().forEach(t => t.stop());
+        }
+      } catch (_) {}
+      video.srcObject = null;
+      try { video.pause(); } catch (_) {}
+    }
+
+    if (session) {
+      session.streamActive = false;
+      session.monitoringStarted = false;
+      session.stoppedAt = new Date().toISOString();
+    }
+
+    // Reset scanline visual
+    const scan = document.getElementById('cameraScan');
+    if (scan) scan.style.display = 'none';
+    const ph = document.getElementById('cameraPlaceholder');
+    if (ph) ph.remove();
+    if (video) video.style.display = 'block';
+  }
+
+  // ==================== REAL DETECTION LOOP ====================
+  function startDetectionLoop() {
+    const video  = document.getElementById('webcamVideo');
+    const canvas = document.getElementById('detectionOverlay');
+    const ctx    = canvas.getContext('2d');
+    let lastRun = 0;
+    const INTERVAL_MS = 250; // ~4 real inferences per second
+
+    state.detectionLoopActive = true;
+    const session = state.cameraSession;
+    if (!session) return;
+
+    const loop = async (timestamp) => {
+      if (!state.detectionLoopActive || !state.examActive || state.examSubmitted) return;
+      if (!session || !session.streamActive) return;
+
+      // Sync canvas size to video
+      if (video.videoWidth && (canvas.width !== video.videoWidth || canvas.height !== video.videoHeight)) {
+        canvas.width = video.videoWidth;
+        canvas.height = video.videoHeight;
+      }
+
+      // Throttle: only run inference every INTERVAL_MS
+      if (timestamp - lastRun >= INTERVAL_MS && state.modelReady && video.readyState >= 2) {
+        lastRun = timestamp;
+        try {
+          const predictions = await state.cocoModel.detect(video);
+          session.framesAnalyzed = true;
+          session.framesProcessed++;
+          processPredictions(predictions, canvas, ctx, video);
+        } catch (_) { /* skip inference errors */ }
+      }
+
+      state.detectionRequestId = requestAnimationFrame(loop);
+    };
+    state.detectionRequestId = requestAnimationFrame(loop);
+  }
+
+  // Process model predictions — the ONLY source of device detection
+  function processPredictions(predictions, canvas, ctx, video) {
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+    // COCO-SSD device-like classes. 'cell phone' = Smartphone.
+    const DEVICE_CLASSES = ['cell phone', 'laptop', 'remote', 'tv', 'keyboard', 'mouse', 'book'];
+    const deviceDetections = predictions.filter(p =>
+      DEVICE_CLASSES.includes(p.class) && p.score >= 0.4
+    );
+
+    let topDevice = null;
+    if (deviceDetections.length > 0) {
+      topDevice = deviceDetections.reduce((a, b) => a.score > b.score ? a : b);
+    }
+
+    // Draw bounding boxes
+    deviceDetections.forEach(pred => {
+      const [x, y, w, h] = pred.bbox;
+      const isPhone = pred.class === 'cell phone';
+      const color = isPhone && pred.score >= state.DEVICE_DETECTION_THRESHOLD ? '#ef4444' : '#f59e0b';
+
+      ctx.strokeStyle = color;
+      ctx.lineWidth = 3;
+      ctx.strokeRect(x, y, w, h);
+
+      const label = `${pred.class === 'cell phone' ? 'Smartphone' : pred.class} — ${Math.round(pred.score * 100)}%`;
+      ctx.font = 'bold 16px Inter, sans-serif';
+      const textWidth = ctx.measureText(label).width;
+      ctx.fillStyle = color;
+      ctx.fillRect(x, Math.max(0, y - 26), textWidth + 16, 24);
+      ctx.fillStyle = '#ffffff';
+      ctx.fillText(label, x + 8, Math.max(18, y - 8));
+    });
+
+    // Faint boxes for other detections (visual feedback only)
+    predictions.forEach(pred => {
+      if (DEVICE_CLASSES.includes(pred.class)) return;
+      if (pred.score < 0.5) return;
+      const [x, y, w, h] = pred.bbox;
+      ctx.strokeStyle = 'rgba(148, 163, 184, 0.35)';
+      ctx.lineWidth = 1;
+      ctx.strokeRect(x, y, w, h);
+    });
+
+    handleDetectionState(topDevice);
+  }
+
+  // State machine driven by REAL model output only (no timers, no randomness)
+  function handleDetectionState(topDevice) {
+    const session = state.cameraSession;
+    if (!session) return;
+
+    const isSmartphone = topDevice && topDevice.class === 'cell phone';
+    const confidence   = topDevice ? topDevice.score : 0;
+    const aboveThreshold = isSmartphone && confidence >= state.DEVICE_DETECTION_THRESHOLD;
+
+    document.getElementById('camMonitoringStatus').innerText =
+      session.streamActive ? '● ACTIVE' : '✕ INACTIVE';
+    document.getElementById('objDetectionStatus').innerText =
+      state.modelReady ? '● SCANNING' : '✕ IDLE';
+
+    if (aboveThreshold) {
+      session.consecutiveAbsences = 0;
+      session.consecutiveDetections++;
+
+      document.getElementById('detectedObjectLabel').innerText = 'Smartphone';
+      document.getElementById('confidenceLabel').innerText = Math.round(confidence * 100) + '%';
+
+      if (session.consecutiveDetections === 1 ||
+          session.consecutiveDetections === state.REQUIRED_CONFIRMATION_FRAMES) {
+        logDetection(
+          `Smartphone ${Math.round(confidence * 100)}% — frame ${session.consecutiveDetections}/${state.REQUIRED_CONFIRMATION_FRAMES}`,
+          'alert'
+        );
+      }
+
+      if (session.consecutiveDetections >= state.REQUIRED_CONFIRMATION_FRAMES && !session.deviceDetected) {
+        confirmDeviceDetection(topDevice);
+      }
+    } else {
+      session.consecutiveDetections = 0;
+
+      if (session.deviceDetected) {
+        // Require multiple missing frames before restoring
+        session.consecutiveAbsences++;
+        logDetection(
+          `Device not detected (absence ${session.consecutiveAbsences}/${state.REQUIRED_ABSENCE_FRAMES})`,
+          'entry'
+        );
+        if (session.consecutiveAbsences >= state.REQUIRED_ABSENCE_FRAMES) {
+          restoreContentProtection();
+          session.consecutiveAbsences = 0;
+        }
+      } else {
+        if (topDevice) {
+          document.getElementById('detectedObjectLabel').innerText = `Possible: ${topDevice.class}`;
+          document.getElementById('confidenceLabel').innerText = Math.round(confidence * 100) + '% (below threshold)';
+        } else {
+          document.getElementById('detectedObjectLabel').innerText = 'None';
+          document.getElementById('confidenceLabel').innerText = '—';
+        }
+      }
+    }
+  }
+
+  // Triggered ONLY from a real, confirmed multi-frame detection
+  function confirmDeviceDetection(detection) {
+    const session = state.cameraSession;
+    if (!session) return;
+
+    session.deviceDetected = true;
+    state.captureProtectionActive = true; // legacy mirror
+    session.consecutiveDetections = 0;
+
+    const now = new Date();
+    const timestamp = now.toLocaleTimeString('en-US', { hour12: true, hour: '2-digit', minute: '2-digit', second: '2-digit' });
+    const confPct = Math.round(detection.score * 100);
+    const objectName = detection.class === 'cell phone' ? 'Smartphone' : detection.class;
+
+    session.lastDetection = { object: objectName, confidence: confPct, timestamp, bbox: detection.bbox };
+
+    // Structured event (requirement #13)
+    session.detectionEvents.push({
+      eventType: 'EXTERNAL_DEVICE_DETECTED',
+      object: detection.class,
+      objectLabel: objectName,
+      confidence: detection.score,
+      timestamp: now.toISOString(),
+      action: 'QUESTION_BLURRED',
+      questionNumber: state.currentQuestionIndex + 1
+    });
+
+    // Blur the question and show the red alert
+    const card  = document.getElementById('questionCard');
+    const alert = document.getElementById('protectionAlert');
+    card.classList.add('protected');
+    alert.classList.add('show');
+
+    const badge = document.getElementById('questionProtectionBadge');
+    badge.innerText = 'Content Protection: ACTIVE';
+    badge.style.background = 'rgba(239,68,68,0.2)';
+    badge.style.color = '#fca5a5';
+
+    const cp = document.getElementById('contentProtectionStatus');
+    cp.innerText = 'ACTIVE';
+    cp.className = 'status-protected';
+
+    const pl = document.getElementById('protectionLabel');
+    pl.innerText = 'ACTIVE';
+    pl.classList.add('alert');
+
+    const cameraLabel = document.getElementById('cameraLabel');
+    cameraLabel.classList.add('alert');
+    cameraLabel.innerText = '⚠ DEVICE DETECTED';
+
+    const statusLabel = document.getElementById('cameraStatusLabel');
+    statusLabel.innerText = `${objectName} ${confPct}%`;
+    statusLabel.classList.add('alert');
+
+    document.getElementById('webcamDot').classList.remove('scanning');
+    document.getElementById('webcamDot').classList.add('alert');
+    document.getElementById('webcamStatusText').innerText = 'External device detected — content protected';
+
+    // Integrity impact
+    state.integrityScore = Math.max(55, state.integrityScore - 12);
+    updateLiveIntegrity();
+
+    addSecurityEvent('capture',
+      `External Device Detected — Object: ${objectName} — Confidence: ${confPct}% — Action: Question content protected`
+    );
+    logDetection(`CONFIRMED — ${objectName} ${confPct}% — Question protected`, 'alert');
+  }
+
+  function restoreContentProtection() {
+    const session = state.cameraSession;
+    if (session) {
+      session.deviceDetected = false;
+      session.detectionEvents.push({
+        eventType: 'EXTERNAL_DEVICE_REMOVED',
+        timestamp: new Date().toISOString(),
+        action: 'QUESTION_RESTORED',
+        questionNumber: state.currentQuestionIndex + 1
+      });
+    }
+    state.captureProtectionActive = false;
+
+    const card  = document.getElementById('questionCard');
+    const alert = document.getElementById('protectionAlert');
+    card.classList.remove('protected');
+    alert.classList.remove('show');
+
+    const badge = document.getElementById('questionProtectionBadge');
+    badge.innerText = 'Content Protection: NORMAL';
+    badge.style.background = 'rgba(34,211,238,0.12)';
+    badge.style.color = 'var(--accent-cyan)';
+
+    const cp = document.getElementById('contentProtectionStatus');
+    cp.innerText = 'NORMAL';
+    cp.className = 'status-normal';
+
+    const pl = document.getElementById('protectionLabel');
+    pl.innerText = 'NORMAL';
+    pl.classList.remove('alert');
+
+    const cameraLabel = document.getElementById('cameraLabel');
+    cameraLabel.classList.remove('alert');
+    cameraLabel.innerText = '● LIVE — AI DEVICE DETECTION';
+
+    const statusLabel = document.getElementById('cameraStatusLabel');
+    statusLabel.innerText = 'Status: Scanning';
+    statusLabel.classList.remove('alert');
+
+    document.getElementById('webcamDot').classList.remove('alert');
+    document.getElementById('webcamDot').classList.add('scanning');
+    document.getElementById('webcamStatusText').innerText = 'Camera active · AI detection running';
+    document.getElementById('detectedObjectLabel').innerText = 'None';
+    document.getElementById('confidenceLabel').innerText = '—';
+
+    addSecurityEvent('normal', 'Device No Longer Detected — Question content restored');
+    logDetection('Device cleared — Question content restored', 'success');
+  }
+
+  // ==================== DETECTION LOG (per session) ====================
+  function logDetection(message, type = 'entry') {
+    const session = state.cameraSession;
+    if (!session) return;
+    const timestamp = new Date().toLocaleTimeString('en-US', { hour12: true, hour: '2-digit', minute: '2-digit', second: '2-digit' });
+    session.detectionHistory.push({ timestamp, message, type });
+    if (session.detectionHistory.length > 50) session.detectionHistory.shift();
+    renderDetectionHistory();
+  }
+
+  function renderDetectionHistory() {
+    const el = document.getElementById('detectionHistory');
+    if (!el) return;
+    const session = state.cameraSession;
+    const history = session ? session.detectionHistory : [];
+    const entries = history.slice(-8).reverse().map(e => {
+      const cls = e.type === 'alert' ? 'alert' : (e.type === 'success' ? 'success' : 'entry');
+      return `<div class="entry ${cls}">${e.timestamp} — ${e.message}</div>`;
+    }).join('');
+    el.innerHTML = entries || '<div class="entry">No detections yet.</div>';
+  }
+
+  // ==================== MANUAL DEMO CONTROLS ====================
+  // These explicitly simulate a device detection. Never automatic.
+  function demoDeviceDetection() {
+    if (!state.examActive || state.examSubmitted) {
+      alert('Start an exam first to use demo detection.');
+      return;
+    }
+    const fakeDetection = { class: 'cell phone', score: 0.91, bbox: [220, 140, 180, 320] };
+    if (state.cameraSession && !state.cameraSession.deviceDetected) {
+      confirmDeviceDetection(fakeDetection);
+      logDetection('DEMO: manual device detection', 'alert');
+    }
+  }
+
+  function demoDeviceCleared() {
+    if (!state.examActive || state.examSubmitted) return;
+    if (!state.captureProtectionActive) {
+      logDetection('DEMO: No active protection to clear', 'entry');
+      return;
+    }
+    logDetection('DEMO: Manual device cleared', 'entry');
+    restoreContentProtection();
+  }
+
+  // ==================== FOCUS / TAB MONITORING ====================
+  function handleVisibilityChange() {
+    if (document.hidden && state.examActive && !state.examSubmitted) {
+      recordTabSwitch('Tab switch detected');
+    }
+  }
+  function handleWindowBlur() {
+    if (state.examActive && !state.examSubmitted) {
+      setTimeout(() => {
+        if (!document.hidden && state.examActive && !state.examSubmitted) {
+          recordTabSwitch('Exam window lost focus');
+        }
+      }, 100);
+    }
+  }
+  function handleBeforeUnload(e) {
+    if (state.examActive && !state.examSubmitted) {
+      e.preventDefault();
+      e.returnValue = 'You have an active examination. Are you sure you want to leave?';
+      return e.returnValue;
+    }
+  }
+
+  function recordTabSwitch(reason) {
+    state.tabSwitchCount++;
+    state.focusViolationCount++;
+    const time = new Date().toLocaleTimeString('en-US', { hour12: false });
+    state.securityEvents.push({ time, type: 'focus', desc: reason + ' (' + state.tabSwitchCount + '/3)' });
+    if (state.tabSwitchCount === 1) {
+      addSecurityEvent('focus', 'Warning 1/3: Please remain on the examination window.');
+      state.integrityScore = Math.max(60, state.integrityScore - 3);
+    } else if (state.tabSwitchCount === 2) {
+      addSecurityEvent('focus', 'Warning 2/3: Another window/tab switch may affect your examination integrity.');
+      state.integrityScore = Math.max(55, state.integrityScore - 6);
+    } else {
+      addSecurityEvent('focus', 'Warning 3/3: Multiple focus violations detected.');
+      state.integrityScore = Math.max(50, state.integrityScore - 10);
+    }
+    updateLiveIntegrity();
+    updateTelemetryLabels();
+  }
+
+  function addSecurityEvent(type, desc) {
+    const time = new Date().toLocaleTimeString('en-US', { hour12: false });
+    state.securityEvents.push({ time, type, desc });
+    if (state.securityEvents.length > 30) state.securityEvents.shift();
+  }
+
+  // ==================== EXAM RENDERING ====================
+  function renderExam() {
+    const q = state.questions[state.currentQuestionIndex];
+    if (!q) return;
+
+    document.getElementById('totalQDisplay').innerText = state.questions.length;
+    document.getElementById('currentQDisplay').innerText = state.currentQuestionIndex + 1;
+    document.getElementById('progressPercent').innerText = Math.round(((state.currentQuestionIndex + 1) / state.questions.length) * 100) + '%';
+    document.getElementById('questionTypeBadge').innerText = q.type;
+
+    const content = document.getElementById('questionContent');
+    content.innerHTML = '';
+
+    if (q.type === 'MCQ' || q.type === 'True/False') {
+      content.innerHTML = `<h2 style="font-size: 1.3rem; margin-bottom: 0.5rem;">${q.text}</h2>
+        <div class="options-list" id="optionsList"></div>`;
+      const optContainer = document.getElementById('optionsList');
+      const options = q.type === 'True/False' ? ['True', 'False'] : q.options;
+      optContainer.innerHTML = options.map((opt, idx) => `
+        <div class="option-item ${state.answers[q.id] === idx ? 'selected' : ''}" onclick="selectOption(${q.id}, ${idx})">
+          <div class="option-letter">${q.type === 'True/False' ? (idx === 0 ? 'T' : 'F') : String.fromCharCode(65 + idx)}</div>
+          <div>${opt}</div>
+        </div>
+      `).join('');
+    } else if (q.type === 'Fill in the Blank') {
+      content.innerHTML = `<h2 style="font-size: 1.3rem; margin-bottom: 1rem;">${q.text}</h2>
+        <input type="text" id="fillInput" class="code-editor" style="min-height: 60px; font-family: Inter, sans-serif;" placeholder="Type your answer..." value="${state.answers[q.id] || ''}" oninput="state.answers[${q.id}] = this.value">`;
+    } else if (q.type === 'Short Answer') {
+      content.innerHTML = `<h2 style="font-size: 1.3rem; margin-bottom: 1rem;">${q.text}</h2>
+        <textarea id="shortInput" class="code-editor" style="min-height: 120px; font-family: Inter, sans-serif;" placeholder="Type your response..." oninput="state.answers[${q.id}] = this.value; updateCharCount(this)">${state.answers[q.id] || ''}</textarea>
+        <div style="font-size: 0.8rem; color: var(--text-secondary); margin-top: 0.5rem;">
+          Characters: <span id="charCount">0</span> · Words: <span id="wordCount">0</span> · Typing duration: <span id="typingDuration">0s</span> · Backspaces: <span id="bsCount">0</span>
+        </div>`;
+      setTimeout(() => updateCharCount(document.getElementById('shortInput')), 0);
+    } else if (q.type === 'Coding') {
+      if (!state.codingMetrics[q.id]) {
+        state.codingMetrics[q.id] = {
+          timeSpent: 0, charsTyped: 0, edits: 0, backspaces: 0,
+          executionAttempts: 0, submissions: 0, lastExecutionTime: null,
+          lastResult: null, executed: false, startTime: Date.now()
+        };
+      }
+      const metrics = state.codingMetrics[q.id];
+      const codeValue = state.answers[q.id] || q.codeTemplate;
+
+      content.innerHTML = `
+        <h2 style="font-size: 1.3rem; margin-bottom: 0.5rem;">${q.text}</h2>
+        <p style="color: var(--text-secondary); margin-bottom: 0.5rem;">${q.description}</p>
+        <div style="background: rgba(255,255,255,0.03); border-radius: 0.8rem; padding: 0.8rem; margin-bottom: 1rem; font-size: 0.85rem;">
+          <div><strong>Example:</strong> ${q.example}</div>
+          <div><strong>Constraints:</strong> ${q.constraints}</div>
+        </div>
+        <div style="display: flex; gap: 1rem; margin-bottom: 0.8rem; flex-wrap: wrap; align-items: center;">
+          <select id="languageSelect" style="background: rgba(255,255,255,0.06); color: white; border: 1px solid rgba(255,255,255,0.1); border-radius: 0.6rem; padding: 0.5rem 1rem;">
+            <option>Java</option><option>Python</option><option>C++</option><option>C</option>
+          </select>
+          <button class="btn-small" onclick="runCode()"><i class="fas fa-play"></i> Run Code</button>
+          <button class="btn-small" onclick="submitCode()"><i class="fas fa-check"></i> Submit Code</button>
+        </div>
+        <textarea id="codeEditor" class="code-editor" placeholder="Write your code here..." oninput="trackCodingInput(this)">${codeValue}</textarea>
+        <div class="code-metrics">
+          <span>Time spent: <strong id="codeTimeSpent">0s</strong></span>
+          <span>Characters: <strong id="codeCharCount">${codeValue.length}</strong></span>
+          <span>Backspaces: <strong id="codeBackspaces">${metrics.backspaces}</strong></span>
+          <span>Executions: <strong id="codeExecutions">${metrics.executionAttempts}</strong></span>
+        </div>
+        <div id="codeOutput" class="code-output" style="display: none;"></div>
+        <div id="testCases" style="margin-top: 1rem;">
+          <div style="font-size: 0.85rem; color: var(--text-secondary); padding: 0.5rem 0;">
+            <i class="fas fa-info-circle"></i> Test Cases: <strong>Not Run</strong>
+          </div>
+        </div>`;
+
+      if (!metrics.interval) {
+        metrics.interval = setInterval(() => {
+          if (state.examActive && !state.examSubmitted && state.questions[state.currentQuestionIndex]?.type === 'Coding') {
+            metrics.timeSpent++;
+            const el = document.getElementById('codeTimeSpent');
+            if (el) el.innerText = metrics.timeSpent + 's';
+          }
+        }, 1000);
+      }
+    }
+
+    const navPanel = document.getElementById('questionNavPanel');
+    navPanel.innerHTML = state.questions.map((qq, idx) => {
+      let cls = 'q-nav-btn';
+      if (idx === state.currentQuestionIndex) cls += ' active';
+      if (state.answers[qq.id] !== undefined && state.answers[qq.id] !== '') cls += ' answered';
+      if (state.markedForReview.has(qq.id)) cls += ' review';
+      return `<button class="${cls}" onclick="goToQuestion(${idx})">${idx + 1}</button>`;
+    }).join('');
+
+    updateLiveIntegrity();
+    updateTelemetryLabels();
+  }
+
+  function trackCodingInput(el) {
+    const q = state.questions[state.currentQuestionIndex];
+    if (!q || q.type !== 'Coding') return;
+    const metrics = state.codingMetrics[q.id];
+    if (!metrics) return;
+    const val = el.value;
+    metrics.charsTyped = val.length;
+    metrics.edits++;
+    if (val.length < (el.dataset.lastLen || 0)) {
+      metrics.backspaces++;
+      const bsEl = document.getElementById('codeBackspaces');
+      if (bsEl) bsEl.innerText = metrics.backspaces;
+    }
+    el.dataset.lastLen = val.length;
+    const charEl = document.getElementById('codeCharCount');
+    if (charEl) charEl.innerText = val.length;
+    state.answers[q.id] = val;
+  }
+
+  function updateCharCount(el) {
+    if (!el) return;
+    const text = el.value;
+    const cc = document.getElementById('charCount');
+    const wc = document.getElementById('wordCount');
+    if (cc) cc.innerText = text.length;
+    if (wc) wc.innerText = text.trim() ? text.trim().split(/\s+/).length : 0;
+    if (!el.dataset.startTime) el.dataset.startTime = Date.now();
+    const duration = Math.floor((Date.now() - el.dataset.startTime) / 1000);
+    const td = document.getElementById('typingDuration');
+    if (td) td.innerText = duration + 's';
+    if (text.length < (el.dataset.lastLength || 0)) state.backspaceCount++;
+    el.dataset.lastLength = text.length;
+    const bs = document.getElementById('bsCount');
+    if (bs) bs.innerText = state.backspaceCount;
+  }
+
+  function selectOption(qId, optIdx) { state.answers[qId] = optIdx; renderExam(); }
+  function nextQuestion() { if (state.currentQuestionIndex < state.questions.length - 1) { state.currentQuestionIndex++; renderExam(); } }
+  function prevQuestion() { if (state.currentQuestionIndex > 0) { state.currentQuestionIndex--; renderExam(); } }
+  function goToQuestion(idx) { state.currentQuestionIndex = idx; renderExam(); }
+  function toggleMarkReview() {
+    const qid = state.questions[state.currentQuestionIndex].id;
+    if (state.markedForReview.has(qid)) state.markedForReview.delete(qid);
+    else state.markedForReview.add(qid);
+    renderExam();
+  }
+
+  // ==================== CODING EXECUTION ====================
+  function runCode() {
+    const q = state.questions[state.currentQuestionIndex];
+    if (!q || q.type !== 'Coding') return;
+    const editor = document.getElementById('codeEditor');
+    const code = editor.value.trim();
+    const output = document.getElementById('codeOutput');
+    const testCasesEl = document.getElementById('testCases');
+    const metrics = state.codingMetrics[q.id];
+
+    metrics.executionAttempts++;
+    const execEl = document.getElementById('codeExecutions');
+    if (execEl) execEl.innerText = metrics.executionAttempts;
+    metrics.lastExecutionTime = Date.now();
+    output.style.display = 'block';
+
+    if (!code || code === q.codeTemplate.trim() || code.replace(/\s/g, '').length < 20) {
+      output.innerText = '⚠ No code submitted for execution.\nPlease write your solution before running.';
+      testCasesEl.innerHTML = `<div style="font-size: 0.85rem; color: var(--text-secondary); padding: 0.5rem 0;"><i class="fas fa-info-circle"></i> Test Cases: <strong>Not Run</strong></div>`;
+      metrics.executed = false;
+      return;
+    }
+
+    output.innerText = '⏳ Demo Execution — Running Test Cases...\n(simulated execution — no real compiler backend)';
+    setTimeout(() => {
+      const codeQuality = Math.min(1, code.length / 250);
+      const passedCount = Math.max(1, Math.min(q.testCases.length, Math.round(codeQuality * q.testCases.length)));
+      output.innerText = '✅ Demo Execution Complete\n⏱ Execution time: 0.42s (simulated)\n💡 Note: This is a simulated execution for MVP demonstration.';
+      let html = '<div style="font-size: 0.85rem; font-weight: 600; margin-bottom: 0.5rem;">Test Results</div>';
+      q.testCases.forEach((tc, i) => {
+        const isPassed = i < passedCount;
+        html += `<div class="test-case ${isPassed ? 'passed' : 'failed'}">
+          <span>Test ${i + 1}: ${tc.input}</span>
+          <span>${isPassed ? '✅ Passed' : '❌ Failed'} (expected: ${tc.expected})</span>
+        </div>`;
+      });
+      html += `<div style="margin-top: 0.6rem; font-weight: 600; color: ${passedCount === q.testCases.length ? '#6ee7b7' : '#fbbf24'};">Test Cases Passed: ${passedCount}/${q.testCases.length}</div>`;
+      testCasesEl.innerHTML = html;
+      metrics.executed = true;
+      metrics.lastResult = { passed: passedCount, total: q.testCases.length };
+      if (passedCount === q.testCases.length) state.integrityScore = Math.min(99, state.integrityScore + 1);
+      else if (passedCount < q.testCases.length / 2) state.integrityScore = Math.max(60, state.integrityScore - 2);
+      updateLiveIntegrity();
+    }, 1200);
+  }
+
+  function submitCode() {
+    const q = state.questions[state.currentQuestionIndex];
+    if (!q || q.type !== 'Coding') return;
+    const editor = document.getElementById('codeEditor');
+    const code = editor.value.trim();
+    const output = document.getElementById('codeOutput');
+    const testCasesEl = document.getElementById('testCases');
+    const metrics = state.codingMetrics[q.id];
+
+    if (!code || code === q.codeTemplate.trim() || code.replace(/\s/g, '').length < 20) {
+      output.style.display = 'block';
+      output.innerText = '⚠ Please write your code before submitting.';
+      testCasesEl.innerHTML = `<div style="font-size: 0.85rem; color: var(--text-secondary); padding: 0.5rem 0;"><i class="fas fa-info-circle"></i> Test Cases: <strong>Not Run</strong></div>`;
+      return;
+    }
+
+    metrics.submissions++;
+    output.style.display = 'block';
+    output.innerText = '⏳ Demo Execution — Evaluating your submission...';
+    setTimeout(() => {
+      const codeQuality = Math.min(1, code.length / 250);
+      const passedCount = Math.max(1, Math.min(q.testCases.length, Math.round(codeQuality * q.testCases.length)));
+      const codingScore = Math.round((passedCount / q.testCases.length) * 20);
+      output.innerText = `✅ Submission Result\n📊 ${passedCount}/${q.testCases.length} Test Cases Passed\n🎯 Coding Score: ${codingScore}/20\n💡 Note: Simulated evaluation for MVP demonstration.`;
+      let html = '<div style="font-size: 0.85rem; font-weight: 600; margin-bottom: 0.5rem;">Submission Results</div>';
+      q.testCases.forEach((tc, i) => {
+        const isPassed = i < passedCount;
+        html += `<div class="test-case ${isPassed ? 'passed' : 'failed'}"><span>Test ${i + 1}</span><span>${isPassed ? '✅ Passed' : '❌ Failed'}</span></div>`;
+      });
+      html += `<div style="margin-top: 0.6rem; font-weight: 600; color: #6ee7b7;">Coding Score: ${codingScore}/20</div>`;
+      testCasesEl.innerHTML = html;
+      metrics.lastResult = { passed: passedCount, total: q.testCases.length, score: codingScore };
+      state.answers[q.id] = code;
+      renderExam();
+      addSecurityEvent('normal', `Coding question submitted — ${passedCount}/${q.testCases.length} passed`);
+    }, 1400);
+  }
+
+  function updateLiveIntegrity() {
+    document.getElementById('liveIntegrityValue').innerText = Math.round(state.integrityScore) + '%';
+  }
+
+  function updateTelemetryLabels() {
+    document.getElementById('typingSpeedLabel').innerText = state.typingSpeed + ' WPM';
+    document.getElementById('tabSwitchLabel').innerText = state.tabSwitchCount;
+  }
+
+  function startTimer() {
+    if (state.timerInterval) clearInterval(state.timerInterval);
+    state.timerInterval = setInterval(() => {
+      if (!state.examActive || state.examSubmitted) return;
+      if (state.examTimeRemaining > 0) {
+        state.examTimeRemaining--;
+        const mins = Math.floor(state.examTimeRemaining / 60);
+        const secs = state.examTimeRemaining % 60;
+        document.getElementById('examTimer').innerText = `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+      } else {
+        clearInterval(state.timerInterval);
+        submitExam();
+      }
+    }, 1000);
+  }
+
+  // ==================== SIMULATED EVENTS ====================
+  function simulateEvent(type) {
+    if (!state.examActive || state.examSubmitted) return;
+    switch(type) {
+      case 'tabswitch':
+        recordTabSwitch('Simulated tab switch');
+        break;
+    }
+    updateLiveIntegrity();
+    updateTelemetryLabels();
+    renderDashboard();
+  }
+
+  function resetSecuritySignals() {
+    state.integrityScore = 96;
+    state.tabSwitchCount = 0;
+    state.focusViolationCount = 0;
+    state.backspaceCount = 0;
+    state.securityEvents = state.securityEvents.filter(e => e.type === 'normal');
+    if (state.cameraSession) {
+      state.cameraSession.detectionHistory = [];
+      state.cameraSession.consecutiveDetections = 0;
+      state.cameraSession.consecutiveAbsences = 0;
+    }
+    updateLiveIntegrity();
+    updateTelemetryLabels();
+    renderDashboard();
+    renderDetectionHistory();
+    addSecurityEvent('normal', 'Security signals reset');
+  }
+
+  // ==================== SUBMIT EXAM ====================
+  function submitExam() {
+    if (!state.examActive || state.examSubmitted) return;
+    state.examActive = false;
+    state.examSubmitted = true;
+    if (state.timerInterval) clearInterval(state.timerInterval);
+
+    stopWebcam();
+
+    // ── Persist per-exam camera summary BEFORE anything else ──
+    const camSession = state.cameraSession;
+    const camSummary = camSession ? {
+      initialized: camSession.initialized,
+      permissionGranted: camSession.permissionGranted,
+      streamActive: camSession.streamActive,
+      monitoringStarted: camSession.monitoringStarted,
+      framesAnalyzed: camSession.framesAnalyzed,
+      framesProcessed: camSession.framesProcessed,
+      deviceDetectionEnabled: camSession.deviceDetectionEnabled,
+      modelLoadFailed: camSession.modelLoadFailed,
+      deviceDetected: camSession.detectionEvents.some(e => e.eventType === 'EXTERNAL_DEVICE_DETECTED'),
+      detectionEvents: camSession.detectionEvents.slice(),
+      lastDetection: camSession.lastDetection
+    } : null;
+    state.lastExamCameraSummary = camSummary;
+
+    Object.values(state.codingMetrics).forEach(m => { if (m.interval) clearInterval(m.interval); });
+
+    let correct = 0, incorrect = 0, unanswered = 0;
+    let mcqCorrect = 0, mcqTotal = 0;
+    let codingScoreTotal = 0, codingScoreMax = 0;
+    let fillCorrect = 0, fillTotal = 0;
+    let shortScore = 0, shortTotal = 0;
+
+    state.questions.forEach(q => {
+      if (q.type === 'MCQ' || q.type === 'True/False') {
+        mcqTotal++;
+        if (state.answers[q.id] === undefined) unanswered++;
+        else if (state.answers[q.id] === q.correct) { correct++; mcqCorrect++; }
+        else incorrect++;
+      } else if (q.type === 'Fill in the Blank') {
+        fillTotal++;
+        if (state.answers[q.id] === undefined || String(state.answers[q.id]).trim() === '') unanswered++;
+        else if (String(state.answers[q.id]).trim().toLowerCase() === q.correct.toLowerCase()) { correct++; fillCorrect++; }
+        else incorrect++;
+      } else if (q.type === 'Short Answer') {
+        shortTotal++;
+        if (!state.answers[q.id] || String(state.answers[q.id]).trim().length < 20) unanswered++;
+        else { correct++; shortScore += 12; }
+      } else if (q.type === 'Coding') {
+        codingScoreMax += 20;
+        const metrics = state.codingMetrics[q.id];
+        if (metrics && metrics.lastResult) {
+          codingScoreTotal += metrics.lastResult.score || Math.round((metrics.lastResult.passed / metrics.lastResult.total) * 20);
+        } else if (state.answers[q.id] && String(state.answers[q.id]).replace(/\s/g, '').length > 30) {
+          codingScoreTotal += 10;
+        }
+      }
+    });
+
+    const mcqWeight = 40, codingWeight = 35, fillWeight = 10, shortWeight = 15;
+    const mcqScore = mcqTotal > 0 ? Math.round((mcqCorrect / mcqTotal) * mcqWeight) : 0;
+    const codingScore = codingScoreMax > 0 ? Math.round((codingScoreTotal / codingScoreMax) * codingWeight) : 0;
+    const fillScore = fillTotal > 0 ? Math.round((fillCorrect / fillTotal) * fillWeight) : 0;
+    const shortScoreWeighted = shortTotal > 0 ? Math.round((shortScore / (shortTotal * 12)) * shortWeight) : 0;
+    const score = mcqScore + codingScore + fillScore + shortScoreWeighted;
+
+    const finalIntegrity = Math.round(state.integrityScore);
+    const tabSwitches = state.tabSwitchCount;
+    const focusViolations = state.focusViolationCount;
+    const captureEvents = state.securityEvents.filter(e => e.type === 'capture').length;
+    const anomalies = state.securityEvents.filter(e => ['typing', 'rapid', 'external'].includes(e.type)).length;
+
+    const durationSeconds = state.examDuration - state.examTimeRemaining;
+    const mins = Math.floor(durationSeconds / 60);
+    const secs = durationSeconds % 60;
+
+    document.getElementById('finalExamScore').innerText = score;
+    document.getElementById('finalIntegrityValue').innerText = finalIntegrity + '%';
+    document.getElementById('mcqScore').innerText = mcqScore + '/' + mcqWeight;
+    document.getElementById('codingScore').innerText = codingScore + '/' + codingWeight;
+    document.getElementById('fillScore').innerText = fillScore + '/' + fillWeight;
+    document.getElementById('shortScore').innerText = shortScoreWeighted + '/' + shortWeight;
+    document.getElementById('correctAnswers').innerText = correct;
+    document.getElementById('incorrectAnswers').innerText = incorrect;
+    document.getElementById('unanswered').innerText = unanswered;
+    document.getElementById('accuracy').innerText = Math.round((correct / (correct + incorrect || 1)) * 100) + '%';
+    document.getElementById('tabSwitchesResult').innerText = tabSwitches;
+    document.getElementById('focusViolationsResult').innerText = focusViolations;
+    document.getElementById('captureEventsResult').innerText = captureEvents;
+    document.getElementById('anomaliesResult').innerText = anomalies;
+    document.getElementById('typingConsistency').innerText = anomalies > 1 ? 'Anomalous' : 'Normal';
+    document.getElementById('mouseConsistency').innerText = 'Normal';
+    document.getElementById('responsePattern').innerText = anomalies > 1 ? 'Irregular' : 'Normal';
+    document.getElementById('timeTaken').innerText = `${mins} min ${secs} sec`;
+
+    const timelineHtml = state.securityEvents.map(e => `<div>${e.time} — ${e.desc}</div>`).join('');
+    document.getElementById('timelineList').innerHTML = timelineHtml || '<div>No events recorded.</div>';
+
+    setTimeout(() => drawGauge(finalIntegrity), 100);
+
+    // ── Render per-exam camera monitoring section ────────────
+    renderResultCameraSection(camSummary);
+
+    document.removeEventListener('visibilitychange', handleVisibilityChange);
+    window.removeEventListener('blur', handleWindowBlur);
+    window.removeEventListener('beforeunload', handleBeforeUnload);
+
+    navigateTo('result');
+  }
+
+  // ── Result page: camera monitoring summary (real session state only) ──
+  function renderResultCameraSection(camSummary) {
+    const host = document.getElementById('resultCameraSection');
+    if (!host) return;
+
+    const cameraActuallyUsed =
+      camSummary &&
+      camSummary.initialized &&
+      camSummary.permissionGranted &&
+      camSummary.framesAnalyzed &&
+      camSummary.framesProcessed > 0;
+
+    if (!cameraActuallyUsed) {
+      host.innerHTML = `
+        <div class="card">
+          <div class="card-header"><h3>Security Monitoring</h3>
+            <span class="badge" style="background:rgba(148,163,184,0.15); color:#94a3b8;">CAMERA NOT USED</span>
+          </div>
+          <div class="small-note">Webcam monitoring was not active during this attempt. Camera access was not granted or the stream never started.</div>
+        </div>`;
+      return;
+    }
+
+    const deviceCount = camSummary.detectionEvents.filter(e => e.eventType === 'EXTERNAL_DEVICE_DETECTED').length;
+    const last = camSummary.lastDetection;
+
+    host.innerHTML = `
+      <div class="card" style="border:1px solid rgba(239,68,68,0.35); box-shadow:0 0 0 1px rgba(239,68,68,0.15) inset;">
+        <div style="display:flex; align-items:center; gap:0.6rem; margin-bottom:0.8rem;">
+          <span style="display:inline-block; width:10px; height:10px; border-radius:50%; background:#ef4444; box-shadow:0 0 8px #ef4444;"></span>
+          <strong style="color:#fca5a5; letter-spacing:0.4px;">CAMERA MONITORING USED</strong>
+        </div>
+        <ul class="factor-list">
+          <li><span>Camera Access</span>     <span class="text-success">Granted</span></li>
+          <li><span>Frame Analysis</span>    <span class="text-success">Completed (${camSummary.framesProcessed} frames)</span></li>
+          <li><span>Device Detection</span>  <span class="text-success">Enabled</span></li>
+          <li><span>Security Events</span>   <span class="${deviceCount > 0 ? 'text-danger' : ''}">${deviceCount}</span></li>
+        </ul>
+        ${deviceCount > 0 && last ? `
+          <div style="margin-top:1rem; padding:0.9rem; border-radius:0.8rem; background:rgba(239,68,68,0.10); border:1px solid rgba(239,68,68,0.3);">
+            <div style="display:flex; align-items:center; gap:0.5rem; margin-bottom:0.4rem;">
+              <span style="display:inline-block; width:9px; height:9px; border-radius:50%; background:#ef4444;"></span>
+              <strong style="color:#fca5a5;">EXTERNAL DEVICE DETECTED</strong>
+            </div>
+            <div style="font-size:0.85rem;">
+              ${last.object} • ${last.confidence}% confidence<br>
+              Question protection triggered<br>
+              Detection Events: ${deviceCount}
+            </div>
+          </div>` : ''}
+      </div>`;
+  }
+
+  function drawGauge(value) {
+    const canvas = document.getElementById('integrityGauge');
+    if (!canvas) return;
+    const ctx = canvas.getContext('2d');
+    const w = 160, h = 160, radius = 62;
+    ctx.clearRect(0, 0, w, h);
+    ctx.beginPath(); ctx.arc(w/2, h/2, radius, 0, 2 * Math.PI);
+    ctx.strokeStyle = 'rgba(255,255,255,0.1)'; ctx.lineWidth = 10; ctx.stroke();
+    const angle = (value / 100) * 2 * Math.PI - Math.PI / 2;
+    ctx.beginPath(); ctx.arc(w/2, h/2, radius, -Math.PI/2, angle);
+    ctx.strokeStyle = '#22d3ee'; ctx.lineWidth = 10; ctx.lineCap = 'round'; ctx.stroke();
+  }
+
+  // ==================== HISTORY ====================
+  function renderHistory() {
+    const history = [
+      { exam: 'Java Programming Assessment', date: '30 Sep 2026', score: '84/100', integrity: '94%', events: 1, status: 'Submitted' },
+      { exam: 'Computer Networks Assessment', date: '28 Sep 2026', score: '78/100', integrity: '91%', events: 2, status: 'Submitted' },
+      { exam: 'Data Structures', date: '25 Sep 2026', score: '88/100', integrity: '96%', events: 0, status: 'Submitted' },
+      { exam: 'Operating Systems', date: '20 Sep 2026', score: '76/100', integrity: '89%', events: 3, status: 'Submitted' },
+    ];
+    document.getElementById('historyTableBody').innerHTML = history.map(h => `
+      <tr onclick="alert('Detailed result for ${h.exam}\\nScore: ${h.score}\\nIntegrity: ${h.integrity}')">
+        <td>${h.exam}</td><td>${h.date}</td><td>${h.score}</td><td>${h.integrity}</td><td>${h.events}</td>
+        <td><span class="badge" style="background:rgba(16,185,129,0.12); color:#6ee7b7;">${h.status}</span></td>
+      </tr>
+    `).join('');
+  }
+
+  // ==================== INIT ====================
+  window.onload = function() { renderDashboard(); };
+
+  window.handleLogin = handleLogin;
+  window.togglePassword = togglePassword;
+  window.handleLogout = handleLogout;
+  window.navigateTo = navigateTo;
+  window.toggleSidebar = toggleSidebar;
+  window.startExam = function() {
+    if (!state.verifiedExamCode) navigateTo('examCode');
+    else startExamWithVerifiedCode();
+  };
+  window.verifyExamCode = verifyExamCode;
+  window.proceedToExam = proceedToExam;
+  window.selectOption = selectOption;
+  window.nextQuestion = nextQuestion;
+  window.prevQuestion = prevQuestion;
+  window.goToQuestion = goToQuestion;
+  window.toggleMarkReview = toggleMarkReview;
+  window.submitExam = submitExam;
+  window.simulateEvent = simulateEvent;
+  window.resetSecuritySignals = resetSecuritySignals;
+  window.runCode = runCode;
+  window.submitCode = submitCode;
+  window.updateCharCount = updateCharCount;
+  window.trackCodingInput = trackCodingInput;
+  window.demoDeviceDetection = demoDeviceDetection;
+  window.demoDeviceCleared = demoDeviceCleared;
+</script>
+</body>
+</html>
